@@ -1,10 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, TextInput } from 'react-native';
-import { useRouter, useNavigation } from 'expo-router';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  FlatList, 
+  ActivityIndicator, 
+  Alert, 
+  TextInput,
+  Modal,
+  BackHandler,
+  ToastAndroid
+} from 'react-native';
+import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../config'; 
-// IMPORT UNTUK PRINT
 import * as Print from 'expo-print';
+import { Ionicons } from '@expo/vector-icons'; 
 
 type Order = {
   id: number;
@@ -27,10 +39,40 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [menuVisible, setMenuVisible] = useState(false);
+
   const router = useRouter();
   const navigation = useNavigation();
 
-  // FUNGSI PRINT LABEL
+  // --- LOGIKA BACK BUTTON FIX (PENGUNCI DASHBOARD UTAMA) ---
+  const lastBackButtonPress = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        const currentTime = Date.now();
+        // Jika diklik dua kali dalam jeda kurang dari 2 detik (2000 ms)
+        if (currentTime - lastBackButtonPress.current < 2000) {
+          BackHandler.exitApp(); // Tutup aplikasi sepenuhnya
+          return true;
+        }
+
+        lastBackButtonPress.current = currentTime;
+        ToastAndroid.show("Klik sekali lagi untuk keluar", ToastAndroid.SHORT);
+        return true; // Menahan tombol back agar tidak bocor mundur ke halaman seleksi role
+      };
+
+      // Daftarkan listener saat halaman ini aktif/fokus
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => {
+        // Otomatis mencabut pengunci ketika admin membuka sub-menu (tambah/edit/laporan)
+        subscription.remove(); 
+      };
+    }, [])
+  );
+  // --- END LOGIKA BACK BUTTON ---
+
   const handlePrintLabel = async (item: Order) => {
     const htmlContent = `
       <html>
@@ -44,16 +86,15 @@ export default function AdminDashboard() {
             <p style="margin: 5px 0; font-size: 14px;"><strong>Detail:</strong> ${item.kategori_pesanan === 'Kiloan' ? item.berat + ' Kg' : item.jenis_satuan}</p>
             <hr/>
             <p style="text-align: right; margin: 0; font-size: 16px; font-weight: bold;">Rp ${item.total_harga.toLocaleString()}</p>
-            <p style="text-align: center; font-size: 10px; margin-top: 10px;">Terima kasih telah mempercayai kami!</p>
+            <p style="text-align: center; font-size: 10px; margin-top: 10px;">Terima kasih!</p>
           </div>
         </body>
       </html>
     `;
-
     try {
       await Print.printAsync({ html: htmlContent });
     } catch (error) {
-      Alert.alert("Error", "Gagal melakukan pencetakan");
+      Alert.alert("Error", "Gagal mencetak");
     }
   };
 
@@ -94,31 +135,37 @@ export default function AdminDashboard() {
     else if (currentStatus === 'Diproses') nextStatus = 'Selesai';
     else if (currentStatus === 'Selesai') nextStatus = 'Diambil';
     else {
-      Alert.alert("Info", "Cucian sudah diambil oleh pelanggan.");
+      Alert.alert("Info", "Cucian sudah diambil.");
       return;
     }
-
     try {
       await axios.put(`${API_URL}/orders/${id}/status`, { status: nextStatus });
-      Alert.alert("Berhasil", `Status diperbarui menjadi: ${nextStatus}`);
+      Alert.alert("Berhasil", `Status: ${nextStatus}`);
       fetchData();
-    } catch (error: any) {
-      Alert.alert("Gagal Update", "Terjadi kesalahan koneksi");
+    } catch (error) {
+      Alert.alert("Gagal", "Kesalahan koneksi");
     }
   };
 
   const handleDelete = (id: number) => {
-    Alert.alert("Konfirmasi Hapus", "Yakin ingin menghapus pesanan ini?", [
+    Alert.alert("Hapus?", "Yakin hapus pesanan ini?", [
       { text: "Batal", style: "cancel" },
       { text: "Hapus", style: "destructive", onPress: async () => {
           try {
             await axios.delete(`${API_URL}/orders/${id}`);
             fetchData();
           } catch (error) {
-            Alert.alert("Gagal", "Gagal menghapus data");
+            Alert.alert("Gagal", "Gagal hapus data");
           }
         } 
       }
+    ]);
+  };
+
+  const handleLogout = () => {
+    Alert.alert("Logout", "Yakin ingin keluar?", [
+      { text: "Batal", style: "cancel" },
+      { text: "Keluar", style: "destructive", onPress: () => router.replace('/(auth)/login') }
     ]);
   };
 
@@ -129,8 +176,32 @@ export default function AdminDashboard() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Panel Admin Laundry</Text>
+      {/* HEADER */}
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Panel Admin Laundry</Text>
+        <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.profileBtn}>
+          <Ionicons name="person-circle-outline" size={32} color="#673AB7" />
+        </TouchableOpacity>
+      </View>
 
+      {/* MODAL PROFILE */}
+      <Modal transparent visible={menuVisible} animationType="fade" onRequestClose={() => setMenuVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
+          <View style={styles.menuBox}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); router.push('/(auth)/register'); }}>
+              <Ionicons name="person-add-outline" size={18} color="#333" />
+              <Text style={styles.menuItemText}>Tambah Akun</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); handleLogout(); }}>
+              <Ionicons name="log-out-outline" size={18} color="#D32F2F" />
+              <Text style={[styles.menuItemText, { color: '#D32F2F' }]}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* DASHBOARD CONTENT */}
       <View style={styles.card}>
         <Text style={{color: '#666'}}>Pesanan Perlu Diproses</Text>
         <Text style={styles.totalNum}>{total}</Text>
@@ -140,24 +211,17 @@ export default function AdminDashboard() {
         <Text style={styles.btnText}>Input Pesanan Baru</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.btnTambah, { backgroundColor: '#4CAF50', marginTop: -10 }]} 
-        onPress={() => router.push('/(admin)/laporan')}>
+      <TouchableOpacity style={[styles.btnTambah, { backgroundColor: '#4CAF50', marginTop: -10 }]} onPress={() => router.push('/(admin)/laporan')}>
         <Text style={styles.btnText}>Laporan Pemasukan</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.btnTambah, { backgroundColor: '#D32F2F', marginTop: -10 }]} 
-        onPress={() => router.push('/(admin)/tambah_pengeluaran')}>
+      <TouchableOpacity style={[styles.btnTambah, { backgroundColor: '#D32F2F', marginTop: -10 }]} onPress={() => router.push('/(admin)/tambah_pengeluaran')}>
         <Text style={styles.btnText}>Laporan Pengeluaran</Text>
       </TouchableOpacity>
 
       <View style={styles.searchRow}>
         <Text style={styles.subtitle}>Daftar Pesanan :</Text>
-        <TextInput 
-          style={styles.searchInput}
-          placeholder="Cari Nama.."
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
+        <TextInput style={styles.searchInput} placeholder="Cari Nama.." value={searchQuery} onChangeText={handleSearch} />
       </View>
       
       {loading ? (
@@ -194,26 +258,17 @@ export default function AdminDashboard() {
                   <Text style={styles.priceLabel}>Tagihan:</Text>
                   <Text style={styles.priceValue}>Rp {item.total_harga.toLocaleString()}</Text>
                 </View>
-                
-                {/* BAGIAN TOMBOL ACTION (PRINT & DELETE) */}
                 <View style={styles.actionRow}>
                   <TouchableOpacity onPress={() => handlePrintLabel(item)} style={styles.iconBtn}>
-                    <Text style={{ fontSize: 18 }}>🖨️</Text>
+                    <Text style={{ fontSize: 16 }}>🖨️</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                        onPress={() => router.push({
-                          pathname: '/(admin)/edit_pesan',
-                          params: { id: item.id } // Kirim ID ke halaman edit
-                        })} 
-                        style={[styles.iconBtn, { backgroundColor: '#E3F2FD' }]}
-                      >
-                        <Text style={{ fontSize: 16 }}>📝</Text>
+                  <TouchableOpacity onPress={() => router.push({ pathname: '/(admin)/edit_pesan', params: { id: item.id } })} style={[styles.iconBtn, { backgroundColor: '#E3F2FD' }]}>
+                    <Text style={{ fontSize: 14 }}>📝</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDelete(item.id)} style={[styles.iconBtn, { backgroundColor: '#FFF5F5' }]}>
-                    <Text style={{ fontSize: 18 }}>🗑️</Text>
+                    <Text style={{ fontSize: 16 }}>🗑️</Text>
                   </TouchableOpacity>
                 </View>
-
               </View>
             </View>
           )}
@@ -225,7 +280,14 @@ export default function AdminDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#f5f5f5' },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', marginTop: 40, color: '#333' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 40, marginBottom: 20 },
+  title: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  profileBtn: { padding: 5 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)', justifyContent: 'flex-start', alignItems: 'flex-end' },
+  menuBox: { backgroundColor: '#fff', marginTop: 85, marginRight: 20, borderRadius: 12, padding: 8, width: 190, elevation: 4 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12 },
+  menuItemText: { marginLeft: 10, fontSize: 14, fontWeight: '500', color: '#333' },
+  menuDivider: { height: 1, backgroundColor: '#eee', marginVertical: 4 },
   card: { backgroundColor: '#fff', padding: 20, borderRadius: 15, alignItems: 'center', elevation: 3, marginBottom: 15 },
   totalNum: { fontSize: 40, fontWeight: 'bold', color: '#673AB7' },
   btnTambah: { backgroundColor: '#673AB7', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 20, elevation: 2 },
@@ -246,7 +308,6 @@ const styles = StyleSheet.create({
   subInfo: { fontSize: 13, color: '#888', marginTop: 2 },
   priceLabel: { fontSize: 12, color: '#999' },
   priceValue: { fontSize: 18, fontWeight: 'bold', color: '#E91E63' },
-  // STYLE BARU UNTUK BARIS TOMBOL
-  actionRow: { flexDirection: 'row', gap: 10 },
-  iconBtn: { padding: 8, backgroundColor: '#F0F0F0', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }
+  actionRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  iconBtn: { padding: 8, backgroundColor: '#F0F0F0', borderRadius: 8, justifyContent: 'center', alignItems: 'center', minWidth: 36 }
 });

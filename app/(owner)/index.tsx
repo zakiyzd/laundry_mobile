@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -6,17 +6,55 @@ import {
   TouchableOpacity, 
   FlatList, 
   RefreshControl, 
-  ActivityIndicator 
+  ActivityIndicator,
+  Modal,
+  Alert,
+  BackHandler,
+  ToastAndroid
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../config';
+// IMPORT ICON
+import { Ionicons } from '@expo/vector-icons'; 
 
 export default function DashboardOwner() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // State untuk Menu Profil
+  const [menuVisible, setMenuVisible] = useState(false);
+
+  // --- LOGIKA BACK BUTTON FIX (PENGUNCI DASHBOARD OWNER) ---
+  const lastBackButtonPress = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        const currentTime = Date.now();
+        // Jika diklik dua kali dalam jeda kurang dari 2 detik (2000 ms)
+        if (currentTime - lastBackButtonPress.current < 2000) {
+          BackHandler.exitApp(); // Tutup aplikasi sepenuhnya
+          return true;
+        }
+
+        lastBackButtonPress.current = currentTime;
+        ToastAndroid.show("Klik sekali lagi untuk keluar", ToastAndroid.SHORT);
+        return true; // Menahan tombol back agar tidak bocor mundur ke halaman seleksi role
+      };
+
+      // Daftarkan listener saat halaman ini aktif/fokus
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => {
+        // Otomatis mencabut pengunci ketika owner membuka sub-menu laporan
+        subscription.remove(); 
+      };
+    }, [])
+  );
+  // --- END LOGIKA BACK BUTTON ---
 
   const fetchDataSelesai = async () => {
     try {
@@ -45,9 +83,63 @@ export default function DashboardOwner() {
     fetchDataSelesai().finally(() => setRefreshing(false));
   }, []);
 
+  // FUNGSI LOGOUT
+  const handleLogout = () => {
+    Alert.alert("Logout", "Apakah anda yakin ingin keluar?", [
+      { text: "Batal", style: "cancel" },
+      { text: "Keluar", style: "destructive", onPress: () => router.replace('/(auth)/login') }
+    ]);
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Panel Owner Laundry</Text>
+      {/* HEADER DENGAN ICON PROFIL */}
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>Panel Owner Laundry</Text>
+        <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.profileBtn}>
+          <Ionicons name="person-circle-outline" size={32} color="#673AB7" />
+        </TouchableOpacity>
+      </View>
+
+      {/* POP-UP MODAL MENU PROFIL */}
+      <Modal
+        transparent={true}
+        visible={menuVisible}
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuBox}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => {
+                setMenuVisible(false);
+                router.push('/(auth)/register');
+              }}
+            >
+              <Ionicons name="person-add-outline" size={18} color="#333" />
+              <Text style={styles.menuItemText}>Tambah Akun Baru</Text>
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => {
+                setMenuVisible(false);
+                handleLogout();
+              }}
+            >
+              <Ionicons name="log-out-outline" size={18} color="#D32F2F" />
+              <Text style={[styles.menuItemText, { color: '#D32F2F' }]}>Keluar / Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <View style={styles.row}>
         <TouchableOpacity 
@@ -79,7 +171,7 @@ export default function DashboardOwner() {
           ListEmptyComponent={
             <Text style={styles.emptyText}>Belum ada riwayat transaksi selesai.</Text>
           }
-       renderItem={({ item }) => (
+          renderItem={({ item }) => (
             <View style={styles.orderCard}>
               <View style={styles.cardTopAccent} />
               <View style={styles.orderHeader}>
@@ -97,7 +189,6 @@ export default function DashboardOwner() {
                 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Kategori :</Text>
-                  {/* Menampilkan Kiloan (Express) atau Kiloan (Biasa) */}
                   <Text style={styles.detailValue}>
                     {item.kategori_pesanan} ({item.tipe_paket || 'Reguler'})
                   </Text>
@@ -105,9 +196,8 @@ export default function DashboardOwner() {
 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Detail :</Text>
-                  {/* Menampilkan angka berat saja + Kg */}
                   <Text style={styles.detailValue}>
-                    {item.berat_jumlah || item.berat || '0'} Kg
+                    {item.berat ? parseFloat(item.berat).toFixed(2).replace(/\.?0+$/, "") : '0'} Kg
                   </Text>
                 </View>
 
@@ -131,12 +221,40 @@ export default function DashboardOwner() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 50 },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#673AB7', textAlign: 'center', marginBottom: 30 },
+  headerRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 30 
+  },
+  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#673AB7' },
+  profileBtn: { padding: 5 },
+
+  // STYLES MODAL MENU PROFIL
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.15)', 
+    justifyContent: 'flex-start', 
+    alignItems: 'flex-end' 
+  },
+  menuBox: { 
+    backgroundColor: '#fff', 
+    marginTop: 85, 
+    marginRight: 20, 
+    borderRadius: 12, 
+    padding: 8, 
+    width: 190,
+    elevation: 4 
+  },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12 },
+  menuItemText: { marginLeft: 10, fontSize: 14, fontWeight: '500', color: '#333' },
+  menuDivider: { height: 1, backgroundColor: '#eee', marginVertical: 4 },
+
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
   cardNav: { width: '48%', padding: 15, borderRadius: 15, elevation: 3 },
   cardLabel: { color: '#eee', fontSize: 11 },
   cardTitle: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: 5 },
-  sectionTitle: { fontSize: 16, color: '#333', marginBottom: 15 },
+  sectionTitle: { fontSize: 16, color: '#333', marginBottom: 15, fontWeight: '600' },
   orderCard: { backgroundColor: '#fff', borderRadius: 15, elevation: 4, marginBottom: 20, overflow: 'hidden', borderBottomWidth: 1, borderBottomColor: '#eee' },
   cardTopAccent: { height: 8, backgroundColor: '#673AB7' },
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, paddingBottom: 10 },

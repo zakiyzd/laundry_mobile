@@ -37,7 +37,7 @@ export default function LoginScreen() {
         router.replace('/(admin)');
       } 
       else if (user.role === 'owner') {
-        Alert.alert('Berhasil', `Selamat datang Owner, ${user.name}!`);
+        Alert.alert('Berhasil', `Selamat datang, ${user.name}!`);
         router.replace('/(owner)');
       } 
       else {
@@ -99,14 +99,14 @@ export default function LoginScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity 
+      {/* <TouchableOpacity 
         onPress={() => router.push('/(auth)/register' as any)} 
         style={{ marginTop: 25 }}
       >
         <Text style={{ color: '#673AB7', textAlign: 'center', fontWeight: '500' }}>
             Tambah akun? Klik di Sini
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 }

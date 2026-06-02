@@ -1,8 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  ActivityIndicator, 
+  TouchableOpacity, 
+  RefreshControl,
+  BackHandler,
+  ToastAndroid,
+  Alert
+} from 'react-native';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../config'; 
+import { Ionicons } from '@expo/vector-icons'; 
 
 interface Order {
   id: number;
@@ -20,7 +32,6 @@ interface Order {
 }
 
 export default function CustomerDashboard() {
-  // Menerima parameter username dan nomor_hp dari LoginCustomer
   const { username, nomor_hp } = useLocalSearchParams();
   const router = useRouter();
 
@@ -28,21 +39,39 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Menghitung hanya cucian yang belum selesai
+  // --- LOGIKA BACK BUTTON (DOUBLE TAP TO EXIT) ---
+  const lastBackButtonPress = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        const currentTime = Date.now();
+        if (currentTime - lastBackButtonPress.current < 2000) {
+          BackHandler.exitApp();
+          return true;
+        }
+
+        lastBackButtonPress.current = currentTime;
+        ToastAndroid.show("Klik sekali lagi untuk keluar", ToastAndroid.SHORT);
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => {
+        subscription.remove(); 
+      };
+    }, [])
+  );
+
   const activeOrdersCount = orders.filter(item => item.status !== 'Diambil').length;
 
   const fetchMyOrders = async () => {
     try {
       setLoading(true);
-      // Mengambil data dari API
       const response = await axios.get(`${API_URL}/orders`);
-      
-      // Mengantisipasi jika response.data.data bernilai null atau undefined
       const allOrders = response.data.data || [];
-      
-      // Filter berdasarkan nomor HP yang login secara presisi
       const myData = allOrders.filter((item: Order) => item.nomor_hp === nomor_hp);
-      
       setOrders(myData);
     } catch (error) {
       console.error("Gagal ambil data customer:", error);
@@ -53,23 +82,36 @@ export default function CustomerDashboard() {
   };
 
   useEffect(() => {
-    // Pastikan nomor_hp ada sebelum fetch
     if (nomor_hp) {
       fetchMyOrders();
     }
   }, [nomor_hp]);
 
+  // FUNGSI LOGOUT CUSTOMER FIX
+  const handleLogout = () => {
+    Alert.alert("Logout", "Apakah anda yakin ingin keluar dari akun pelanggan?", [
+      { text: "Batal", style: "cancel" },
+      { 
+        text: "Keluar", 
+        style: "destructive", 
+        onPress: () => {
+          // Navigasi langsung ke halaman login customer
+          // Pastikan path ini sesuai dengan struktur folder auth kamu
+          router.replace('/(auth)/login_customer'); 
+        } 
+      }
+    ]);
+  };
+
   return (
     <View style={styles.container}>
-      {/* Header Profile */}
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeText}>Halo, Pelanggan Setia</Text>
-          {/* Menampilkan nama yang dikirim dari Login (Inputan Admin) */}
           <Text style={styles.usernameText}>{username || 'Pelanggan'} 👋</Text>
         </View>
-        <TouchableOpacity style={styles.logoutIcon} onPress={() => router.replace('/')}>
-          <Text style={{ fontSize: 20 }}>🚪</Text>
+        <TouchableOpacity style={styles.logoutIcon} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={24} color="#D32F2F" />
         </TouchableOpacity>
       </View>
 
