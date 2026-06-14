@@ -12,49 +12,59 @@ export default function TambahPesananV2() {
   const [alamat, setAlamat] = useState('');
   const [kategori, setKategori] = useState('Kiloan'); // Kiloan atau Satuan
   const [jenisSatuan, setJenisSatuan] = useState('');
-  const [tipePaket, setTipePaket] = useState('Biasa'); // Biasa atau Express
-  const [layanan, setLayanan] = useState('Cuci+Setrika');
+  
+  // STATE BARU: Menyimpan ID Layanan (default 1 = [BIASA] Cuci+Setrika)
+  const [idServices, setIdServices] = useState<number>(1);
   const [berat, setBerat] = useState('');
   const [totalTagihan, setTotalTagihan] = useState(0);
 
-  // LOGIKA HITUNG HARGA KILOAN
+  // LOGIKA HITUNG HARGA KILOAN DINAMIS (Menyesuaikan master harga database baru)
   useEffect(() => {
     if (kategori === 'Kiloan' && berat) {
       let hargaBase = 0;
-      if (layanan === 'Cuci+Setrika') hargaBase = 6000;
-      else if (layanan === 'Cuci Saja') hargaBase = 4000;
-      else if (layanan === 'Setrika Saja') hargaBase = 4000;
+      
+      // Pemetaan harga mengikuti ID master data services yang baru saja di-insert
+      if (idServices === 1) hargaBase = 6000;       // [BIASA] Cuci+Setrika
+      else if (idServices === 2) hargaBase = 4000;  // [BIASA] Cuci Saja
+      else if (idServices === 3) hargaBase = 4000;  // [BIASA] Setrika Saja
+      else if (idServices === 5) hargaBase = 12000; // [EXPRESS] Cuci+Setrika
+      else if (idServices === 6) hargaBase = 8000;  // [EXPRESS] Cuci Saja
+      else if (idServices === 7) hargaBase = 8000;  // [EXPRESS] Setrika Saja
 
-      let pengali = tipePaket === 'Express' ? 2 : 1;
-      setTotalTagihan(parseFloat(berat) * hargaBase * pengali);
+      setTotalTagihan(parseFloat(berat) * hargaBase);
     }
-  }, [berat, layanan, tipePaket, kategori]);
+  }, [berat, idServices, kategori]);
 
   const handleSimpan = async () => {
+    if (!nama || !nomorHp || !alamat || (kategori === 'Kiloan' && !berat)) {
+      Alert.alert("Gagal", "Mohon lengkapi semua data formulir!");
+      return;
+    }
+
     try {
-      
+      // Menembak payload baru yang sesuai dengan Request Validation Laravel
       await axios.post(`${API_URL}/orders`, {
         nama_pelanggan: nama,
         nomor_hp: nomorHp,
         alamat: alamat,
-        kategori_pesanan: kategori,
+        kategori: kategori, // Dikirim agar Laravel tahu jenis transaksinya
+        id_services: kategori === 'Kiloan' ? Number(idServices) : 4, // ID 4 khusus penampung Satuan di database
         jenis_satuan: kategori === 'Satuan' ? jenisSatuan : null,
-        tipe_paket: kategori === 'Kiloan' ? tipePaket : null,
-        layanan: layanan,
         berat: kategori === 'Kiloan' ? parseFloat(berat) : 0,
         total_harga: totalTagihan,
-        status: 'Antre'
       });
+
       Alert.alert("Sukses", "Pesanan Berhasil Disimpan");
       router.replace('/(admin)');
-    } catch (e) {
-      Alert.alert("Gagal", "Cek koneksi server");
+    } catch (e: any) {
+      console.error(e);
+      Alert.alert("Gagal", e.response?.data?.message || "Cek koneksi server");
     }
   };
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Input Pesanan Baru</Text>
+      <Text style={styles.title}>Input Transaksi Baru</Text>
 
       <TextInput style={styles.input} placeholder="Nama Pelanggan" value={nama} onChangeText={setNama} />
       <TextInput style={styles.input} placeholder="Nomor HP" keyboardType="phone-pad" value={nomorHp} onChangeText={setNomorHp} />
@@ -62,7 +72,10 @@ export default function TambahPesananV2() {
 
       <Text style={styles.label}>Kategori Pesanan</Text>
       <View style={styles.pickerContainer}>
-        <Picker selectedValue={kategori} onValueChange={(v) => setKategori(v)}>
+        <Picker selectedValue={kategori} onValueChange={(v) => {
+          setKategori(v);
+          if (v === 'Satuan') setTotalTagihan(0); // Reset total jika pindah ke satuan
+        }}>
           <Picker.Item label="Kiloan" value="Kiloan" />
           <Picker.Item label="Satuan" value="Satuan" />
         </Picker>
@@ -70,20 +83,19 @@ export default function TambahPesananV2() {
 
       {kategori === 'Kiloan' ? (
         <>
-          <Text style={styles.label}>Tipe Paket</Text>
+          <Text style={styles.label}>Pilih Paket & Layanan Cucian</Text>
           <View style={styles.pickerContainer}>
-            <Picker selectedValue={tipePaket} onValueChange={(v) => setTipePaket(v)}>
-              <Picker.Item label="Biasa" value="Biasa" />
-              <Picker.Item label="Express (2x Lipat)" value="Express" />
-            </Picker>
-          </View>
-
-          <Text style={styles.label}>Layanan</Text>
-          <View style={styles.pickerContainer}>
-            <Picker selectedValue={layanan} onValueChange={(v) => setLayanan(v)}>
-              <Picker.Item label="Cuci+Setrika" value="Cuci+Setrika" />
-              <Picker.Item label="Cuci Saja" value="Cuci Saja" />
-              <Picker.Item label="Setrika Saja" value="Setrika Saja" />
+            {/* SATU DROPDOWN GABUNGAN YANG JAUH LEBIH RINGKAS */}
+            <Picker selectedValue={idServices} onValueChange={(v) => setIdServices(Number(v))}>
+              {/* KELOMPOK BIASA */}
+              <Picker.Item label="[BIASA] Cuci + Setrika" value={1} />
+              <Picker.Item label="[BIASA] Cuci Saja" value={2} />
+              <Picker.Item label="[BIASA] Setrika Saja" value={3} />
+              
+              {/* KELOMPOK EXPRESS (2x Lipat sesuai rancangan database baru) */}
+              <Picker.Item label="[EXPRESS] Cuci + Setrika" value={5} />
+              <Picker.Item label="[EXPRESS] Cuci Saja" value={6} />
+              <Picker.Item label="[EXPRESS] Setrika Saja" value={7} />
             </Picker>
           </View>
 
@@ -107,7 +119,7 @@ export default function TambahPesananV2() {
       </View>
 
       <TouchableOpacity style={styles.btnSimpan} onPress={handleSimpan}>
-        <Text style={styles.btnText}>Simpan Pesanan</Text>
+        <Text style={styles.btnText}>Simpan Transaksi</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -122,6 +134,6 @@ const styles = StyleSheet.create({
   totalBox: { padding: 20, backgroundColor: '#f0f0f0', borderRadius: 8, marginBottom: 20 },
   totalLabel: { fontSize: 16, color: '#333' },
   totalValue: { fontSize: 24, fontWeight: 'bold', color: '#673AB7' },
-  btnSimpan: { backgroundColor: '#673AB7', padding: 18, borderRadius: 8, alignItems: 'center' },
+  btnSimpan: { backgroundColor: '#673AB7', padding: 18, borderRadius: 12, alignItems: 'center' },
   btnText: { color: '#fff', fontWeight: 'bold' }
 });

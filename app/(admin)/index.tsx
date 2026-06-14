@@ -18,19 +18,38 @@ import { API_URL } from '../config';
 import * as Print from 'expo-print';
 import { Ionicons } from '@expo/vector-icons'; 
 
-type Order = {
+type Customer = {
   id: number;
-  nama_pelanggan: string;
+  username: string;
   nomor_hp: string;
   alamat: string;
-  kategori_pesanan: string;
-  jenis_satuan: string;
-  tipe_paket: string;
+};
+
+type Kategori = {
+  id: number;
+  nama: string;
+  harga_per_kg: number;
+};
+
+type ServiceRelasi = {
+  id: number;
+  id_kategori: number;
+  nama_layanan: string;
+  kategori?: Kategori;
+};
+
+type Order = {
+  id: number;
+  id_pelanggan: number;
+  id_services: number;
   berat: number;
-  layanan: string;
+  total_berat: number;
   status: string;
   total_harga: number;
   created_at: string; 
+  customer?: Customer;
+  service?: ServiceRelasi;
+  jenis_satuan?: string;
 };
 
 export default function AdminDashboard() {
@@ -44,34 +63,27 @@ export default function AdminDashboard() {
   const router = useRouter();
   const navigation = useNavigation();
 
-  // --- LOGIKA BACK BUTTON FIX (PENGUNCI DASHBOARD UTAMA) ---
   const lastBackButtonPress = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
         const currentTime = Date.now();
-        // Jika diklik dua kali dalam jeda kurang dari 2 detik (2000 ms)
         if (currentTime - lastBackButtonPress.current < 2000) {
-          BackHandler.exitApp(); // Tutup aplikasi sepenuhnya
+          BackHandler.exitApp();
           return true;
         }
-
         lastBackButtonPress.current = currentTime;
         ToastAndroid.show("Klik sekali lagi untuk keluar", ToastAndroid.SHORT);
-        return true; // Menahan tombol back agar tidak bocor mundur ke halaman seleksi role
+        return true;
       };
 
-      // Daftarkan listener saat halaman ini aktif/fokus
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-
       return () => {
-        // Otomatis mencabut pengunci ketika admin membuka sub-menu (tambah/edit/laporan)
         subscription.remove(); 
       };
     }, [])
   );
-  // --- END LOGIKA BACK BUTTON ---
 
   const handlePrintLabel = async (item: Order) => {
     const htmlContent = `
@@ -80,10 +92,10 @@ export default function AdminDashboard() {
           <div style="width: 250px; border: 2px dashed #000; padding: 10px; border-radius: 10px;">
             <h2 style="text-align: center; margin: 0; font-size: 18px;">LABEL CUCIAN</h2>
             <hr/>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Nama:</strong> ${item.nama_pelanggan}</p>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Alamat:</strong> ${item.alamat || '-'}</p>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Layanan:</strong> ${item.kategori_pesanan} (${item.tipe_paket})</p>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Detail:</strong> ${item.kategori_pesanan === 'Kiloan' ? item.berat + ' Kg' : item.jenis_satuan}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Nama:</strong> ${item.customer?.username || 'Tanpa Nama'}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Alamat:</strong> ${item.customer?.alamat || '-'}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Layanan:</strong> ${item.service?.nama_layanan || 'Layanan'}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Detail:</strong> ${item.berat > 0 ? item.berat + ' Kg' : 'Satuan'}</p>
             <hr/>
             <p style="text-align: right; margin: 0; font-size: 16px; font-weight: bold;">Rp ${item.total_harga.toLocaleString()}</p>
             <p style="text-align: center; font-size: 10px; margin-top: 10px;">Terima kasih!</p>
@@ -123,7 +135,7 @@ export default function AdminDashboard() {
       setFilteredOrders(orders);
     } else {
       const filtered = orders.filter((item) =>
-        item.nama_pelanggan.toLowerCase().includes(text.toLowerCase())
+        item.customer?.username.toLowerCase().includes(text.toLowerCase())
       );
       setFilteredOrders(filtered);
     }
@@ -131,9 +143,11 @@ export default function AdminDashboard() {
 
   const handleUpdateStatus = async (id: number, currentStatus: string) => {
     let nextStatus = '';
-    if (currentStatus === 'Antre') nextStatus = 'Diproses';
-    else if (currentStatus === 'Diproses') nextStatus = 'Selesai';
-    else if (currentStatus === 'Selesai') nextStatus = 'Diambil';
+    const statusClean = currentStatus.toLowerCase();
+
+    if (statusClean === 'antre') nextStatus = 'diproses';
+    else if (statusClean === 'diproses') nextStatus = 'selesai';
+    else if (statusClean === 'selesai') nextStatus = 'diambil';
     else {
       Alert.alert("Info", "Cucian sudah diambil.");
       return;
@@ -176,15 +190,18 @@ export default function AdminDashboard() {
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Panel Admin Laundry</Text>
-        <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.profileBtn}>
-          <Ionicons name="person-circle-outline" size={32} color="#673AB7" />
+      {/* HEADER SECTION */}
+      <View style={styles.headerContainer}>
+        <View>
+          <Text style={styles.headerSubtitle}>Selamat Datang,</Text>
+          <Text style={styles.headerTitle}>Admin Laundry</Text>
+        </View>
+        <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.avatarWrapper}>
+          <Ionicons name="person" size={20} color="#673AB7" />
         </TouchableOpacity>
       </View>
 
-      {/* MODAL PROFILE */}
+      {/* POPUP MODAL PROFILE */}
       <Modal transparent visible={menuVisible} animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
           <View style={styles.menuBox}>
@@ -201,72 +218,134 @@ export default function AdminDashboard() {
         </TouchableOpacity>
       </Modal>
 
-      {/* DASHBOARD CONTENT */}
-      <View style={styles.card}>
-        <Text style={{color: '#666'}}>Pesanan Perlu Diproses</Text>
-        <Text style={styles.totalNum}>{total}</Text>
+     {/* GRADIENT HERO BANNER */}
+      <View style={styles.heroGradientCard}>
+        <View style={styles.heroLeftSection}>
+          <Text style={styles.heroCardLabel}>TOTAL ANTRIAN</Text>
+          <Text style={styles.heroCardNumber}>{total}</Text>
+          <Text style={styles.heroCardSub}>Nota Menunggu</Text>
+        </View>
+        
+        <View style={styles.heroRightSection}>
+          {/* Tombol Pendapatan: Hijau Cerah Solid (Contoh Laporan Pendapatan) */}
+          <TouchableOpacity 
+            style={[styles.glassButton, { backgroundColor: '#4CAF50', borderColor: '#4CAF50' }]} 
+            onPress={() => router.push('/(admin)/laporan')}
+          >
+            <Ionicons name="stats-chart" size={14} color="#FFF" />
+            <Text style={styles.glassButtonText}>Pendapatan</Text>
+          </TouchableOpacity>
+          
+          {/* Tombol Pengeluaran: Merah Cerah Solid (Contoh Laporan Pengeluaran) */}
+          <TouchableOpacity 
+            style={[styles.glassButton, { backgroundColor: '#D32F2F', borderColor: '#D32F2F' }]} 
+            onPress={() => router.push('/(admin)/tambah_pengeluaran')}
+          >
+            <Ionicons name="wallet" size={14} color="#FFF" />
+            <Text style={styles.glassButtonText}>Pengeluaran</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <TouchableOpacity style={styles.btnTambah} onPress={() => router.push('/(admin)/tambah_pesan')}>
-        <Text style={styles.btnText}>Input Pesanan Baru</Text>
+      {/* FLOATING ACTION BUTTON */}
+      <TouchableOpacity style={styles.primeActionButton} onPress={() => router.push('/(admin)/tambah_pesan')}>
+        <View style={styles.primeIconCircle}>
+          <Ionicons name="add-sharp" size={22} color="#673AB7" />
+        </View>
+        <Text style={styles.primeActionText}>INPUT TRANSAKSI BARU</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.btnTambah, { backgroundColor: '#4CAF50', marginTop: -10 }]} onPress={() => router.push('/(admin)/laporan')}>
-        <Text style={styles.btnText}>Laporan Pemasukan</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={[styles.btnTambah, { backgroundColor: '#D32F2F', marginTop: -10 }]} onPress={() => router.push('/(admin)/tambah_pengeluaran')}>
-        <Text style={styles.btnText}>Laporan Pengeluaran</Text>
-      </TouchableOpacity>
-
+      {/* SEARCH BAR & TITLE */}
       <View style={styles.searchRow}>
-        <Text style={styles.subtitle}>Daftar Pesanan :</Text>
-        <TextInput style={styles.searchInput} placeholder="Cari Nama.." value={searchQuery} onChangeText={handleSearch} />
+        <Text style={styles.sectionHeading}>Daftar Orderan</Text>
+        <View style={styles.searchBarContainer}>
+          <Ionicons name="search" size={14} color="#A0A0A0" style={{ marginRight: 6 }} />
+          <TextInput 
+            style={styles.searchInputField} 
+            placeholder="Cari nama..." 
+            placeholderTextColor="#A0A0A0"
+            value={searchQuery} 
+            onChangeText={handleSearch} 
+          />
+        </View>
       </View>
-      
+
+      {/* FEED LIST ORDER */}
       {loading ? (
-        <ActivityIndicator size="large" color="#673AB7" />
+        <ActivityIndicator size="large" color="#673AB7" style={{ marginTop: 30 }} />
       ) : (
         <FlatList
           data={filteredOrders}
           keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
-            <View style={styles.orderItem}>
-              <View style={styles.rowBetween}>
+            <View style={styles.neoOrderCard}>
+              <View style={styles.cardMainHeader}>
                 <View>
-                  <Text style={styles.custName}>{item.nama_pelanggan}</Text>
-                  <Text style={styles.dateText}>📅 {formatTanggal(item.created_at)}</Text>
+                  <Text style={styles.neoCustName}>{item.customer?.username || 'Tanpa Nama'}</Text>
+                  <Text style={styles.neoDateText}>{formatTanggal(item.created_at)}</Text>
                 </View>
                 <TouchableOpacity 
-                  style={[styles.badge, { backgroundColor: item.status === 'Diambil' ? '#4CAF50' : '#FF9800' }]}
+                  style={[
+                    styles.capsuleBadge, 
+                    { backgroundColor: item.status.toLowerCase() === 'diambil' ? '#E8F5E9' : '#FFF3E0' }
+                  ]}
                   onPress={() => handleUpdateStatus(item.id, item.status)}
                 >
-                  <Text style={styles.badgeText}>{item.status}</Text>
+                  <View style={[
+                    styles.dotIndicator, 
+                    { backgroundColor: item.status.toLowerCase() === 'diambil' ? '#4CAF50' : '#FF9800' }
+                  ]} />
+                  <Text style={[
+                    styles.capsuleBadgeText, 
+                    { color: item.status.toLowerCase() === 'diambil' ? '#2E7D32' : '#E65100' }
+                  ]}>
+                    {item.status.toUpperCase()}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.detailBox}>
-                <Text style={styles.infoText}>📱 {item.nomor_hp}</Text>
-                <Text style={styles.infoText}>📍 {item.alamat || '-'}</Text>
-                <View style={styles.divider} />
-                <Text style={styles.serviceText}>{item.kategori_pesanan} ({item.tipe_paket || 'Satuan'}) - {item.layanan}</Text>
-                <Text style={styles.subInfo}>{item.kategori_pesanan === 'Kiloan' ? `Berat: ${item.berat} Kg` : `Item: ${item.jenis_satuan}`}</Text>
+              {/* DETAILS METADATA */}
+              <View style={styles.metaDataContainer}>
+                <View style={styles.metaRow}>
+                  <Ionicons name="call-outline" size={13} color="#777" />
+                  <Text style={styles.metaText}>{item.customer?.nomor_hp || '-'}</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Ionicons name="location-outline" size={13} color="#777" />
+                  <Text style={styles.metaText} numberOfLines={1}>{item.customer?.alamat || '-'}</Text>
+                </View>
+                
+                <View style={styles.innerCardDivider} />
+                
+                <Text style={styles.textServiceTitle}>
+                  {item.berat > 0 ? 'Kiloan' : 'Satuan'} • {item.service?.nama_layanan || 'Layanan'}
+                </Text>
+                <Text style={styles.textServiceDetail}>
+                  {item.berat > 0 ? `Berat: ${item.berat} Kg` : `Item: ${item.jenis_satuan || '-'}`}
+                </Text>
               </View>
 
-              <View style={styles.rowBetween}>
+              {/* CARD BOTTOM PRICE AND ACTIONS */}
+              <View style={styles.cardFooterArea}>
                 <View>
-                  <Text style={styles.priceLabel}>Tagihan:</Text>
-                  <Text style={styles.priceValue}>Rp {item.total_harga.toLocaleString()}</Text>
+                  <Text style={styles.priceMetaLabel}>TOTAL</Text>
+                  <Text style={styles.priceMetaValue}>Rp {item.total_harga.toLocaleString('id-ID')}</Text>
                 </View>
-                <View style={styles.actionRow}>
-                  <TouchableOpacity onPress={() => handlePrintLabel(item)} style={styles.iconBtn}>
-                    <Text style={{ fontSize: 16 }}>🖨️</Text>
+                
+                <View style={styles.neoActionGroup}>
+                  <TouchableOpacity onPress={() => handlePrintLabel(item)} style={styles.neoIconBtn}>
+                    <Ionicons name="print" size={15} color="#555" />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => router.push({ pathname: '/(admin)/edit_pesan', params: { id: item.id } })} style={[styles.iconBtn, { backgroundColor: '#E3F2FD' }]}>
-                    <Text style={{ fontSize: 14 }}>📝</Text>
+                  <TouchableOpacity 
+                    onPress={() => router.push({ pathname: '/(admin)/edit_pesan', params: { id: item.id } })} 
+                    style={[styles.neoIconBtn, { backgroundColor: '#E3F2FD' }]}
+                  >
+                    <Ionicons name="create" size={15} color="#1E88E5" />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(item.id)} style={[styles.iconBtn, { backgroundColor: '#FFF5F5' }]}>
-                    <Text style={{ fontSize: 16 }}>🗑️</Text>
+                  <TouchableOpacity onPress={() => handleDelete(item.id)} style={[styles.neoIconBtn, { backgroundColor: '#FFEBEE' }]}>
+                    <Ionicons name="trash" size={15} color="#E53935" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -279,35 +358,56 @@ export default function AdminDashboard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f5f5f5' },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 40, marginBottom: 20 },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  profileBtn: { padding: 5 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)', justifyContent: 'flex-start', alignItems: 'flex-end' },
-  menuBox: { backgroundColor: '#fff', marginTop: 85, marginRight: 20, borderRadius: 12, padding: 8, width: 190, elevation: 4 },
+  container: { flex: 1, paddingHorizontal: 20, backgroundColor: '#F4F6FA' },
+  headerContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 50, marginBottom: 25 },
+  headerSubtitle: { fontSize: 13, color: '#8E8E93', fontWeight: '500', letterSpacing: 0.5 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1C1C1E', marginTop: 1 },
+  avatarWrapper: { backgroundColor: '#EFEFF4', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#E5E5EA' },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.1)', justifyContent: 'flex-start', alignItems: 'flex-end' },
+  menuBox: { backgroundColor: '#fff', marginTop: 95, marginRight: 20, borderRadius: 12, padding: 8, width: 180, elevation: 5 },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12 },
   menuItemText: { marginLeft: 10, fontSize: 14, fontWeight: '500', color: '#333' },
   menuDivider: { height: 1, backgroundColor: '#eee', marginVertical: 4 },
-  card: { backgroundColor: '#fff', padding: 20, borderRadius: 15, alignItems: 'center', elevation: 3, marginBottom: 15 },
-  totalNum: { fontSize: 40, fontWeight: 'bold', color: '#673AB7' },
-  btnTambah: { backgroundColor: '#673AB7', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 20, elevation: 2 },
-  btnText: { color: 'white', fontWeight: 'bold' },
-  searchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  searchInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 15, paddingVertical: 5, width: '50%', fontSize: 12 },
-  subtitle: { fontSize: 16, fontWeight: 'bold', color: '#555' },
-  orderItem: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 12, elevation: 2, borderLeftWidth: 6, borderLeftColor: '#673AB7' },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  custName: { fontSize: 17, fontWeight: 'bold', color: '#333' },
-  dateText: { fontSize: 11, color: '#999', marginTop: 2 },
-  badge: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 15 },
-  badgeText: { color: 'white', fontSize: 11, fontWeight: 'bold' },
-  detailBox: { marginVertical: 10 },
-  infoText: { fontSize: 13, color: '#666', marginBottom: 2 },
-  divider: { height: 1, backgroundColor: '#eee', marginVertical: 8 },
-  serviceText: { fontSize: 14, fontWeight: '600', color: '#444' },
-  subInfo: { fontSize: 13, color: '#888', marginTop: 2 },
-  priceLabel: { fontSize: 12, color: '#999' },
-  priceValue: { fontSize: 18, fontWeight: 'bold', color: '#E91E63' },
-  actionRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  iconBtn: { padding: 8, backgroundColor: '#F0F0F0', borderRadius: 8, justifyContent: 'center', alignItems: 'center', minWidth: 36 }
+
+  heroGradientCard: { backgroundColor: '#673AB7', borderRadius: 24, padding: 22, flexDirection: 'row', elevation: 4, marginBottom: 15 },
+  heroLeftSection: { flex: 1, justifyContent: 'center' },
+  heroCardLabel: { color: '#D1C4E9', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  heroCardNumber: { color: '#FFF', fontSize: 44, fontWeight: '900', marginVertical: 2 },
+  heroCardSub: { color: '#E1D5F5', fontSize: 12, fontWeight: '500' },
+  
+  heroRightSection: { flex: 1, justifyContent: 'center', gap: 8, paddingLeft: 10 },
+  glassButton: { backgroundColor: 'rgba(255, 255, 255, 0.15)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.25)' },
+  glassButtonText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+
+  primeActionButton: { backgroundColor: '#673AB7', padding: 16, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, elevation: 3, marginBottom: 25 },
+  primeIconCircle: { backgroundColor: '#FFF', padding: 3, borderRadius: 12 },
+  primeActionText: { color: '#FFF', fontWeight: '800', fontSize: 12, letterSpacing: 0.8 },
+
+  searchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  sectionHeading: { fontSize: 18, fontWeight: '800', color: '#1C1C1E' },
+  searchBarContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6, width: '50%' },
+  searchInputField: { flex: 1, fontSize: 12, color: '#1C1C1E', padding: 0 },
+
+  neoOrderCard: { backgroundColor: '#FFF', borderRadius: 22, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#EAEAEA', elevation: 1 },
+  cardMainHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  neoCustName: { fontSize: 16, fontWeight: '800', color: '#1C1C1E' },
+  neoDateText: { fontSize: 11, color: '#8E8E93', marginTop: 2, fontWeight: '500' },
+  
+  capsuleBadge: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12, gap: 5 },
+  dotIndicator: { width: 6, height: 6, borderRadius: 3 },
+  capsuleBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  
+  metaDataContainer: { marginVertical: 14, backgroundColor: '#F8F9FA', padding: 12, borderRadius: 16 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  metaText: { fontSize: 12, color: '#555', fontWeight: '500' },
+  innerCardDivider: { height: 1, backgroundColor: '#EAEAEA', marginVertical: 10 },
+  textServiceTitle: { fontSize: 13, fontWeight: '800', color: '#1C1C1E' },
+  textServiceDetail: { fontSize: 12, color: '#666', marginTop: 2, fontWeight: '500' },
+  
+  cardFooterArea: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  priceMetaLabel: { fontSize: 9, color: '#8E8E93', fontWeight: '700', letterSpacing: 0.5 },
+  priceMetaValue: { fontSize: 18, fontWeight: '900', color: '#673AB7', marginTop: 1 },
+  neoActionGroup: { flexDirection: 'row', gap: 6 },
+  neoIconBtn: { padding: 9, backgroundColor: '#F2F2F7', borderRadius: 12, justifyContent: 'center', alignItems: 'center', minWidth: 36 }
 });

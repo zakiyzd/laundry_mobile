@@ -19,62 +19,61 @@ export default function EditPesan() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  // State Form (Samakan dengan Tambah Pesan)
+  // State Form
   const [nama, setNama] = useState('');
   const [nomorHp, setNomorHp] = useState('');
   const [alamat, setAlamat] = useState('');
-  const [kategori, setKategori] = useState('');
   const [berat, setBerat] = useState('');
-  const [layanan, setLayanan] = useState('');
   const [totalHarga, setTotalHarga] = useState('');
 
-  // 1. Ambil data lama saat halaman dibuka
+  // 1. Ambil data lama saat halaman dibuka (Disesuaikan dengan nested object baru)
   useEffect(() => {
     const fetchDetail = async () => {
       try {
         const response = await axios.get(`${API_URL}/orders/${id}`);
         const data = response.data.data;
         
-        setNama(data.nama_pelanggan);
-        setNomorHp(data.nomor_hp);
-        setAlamat(data.alamat);
-        setKategori(data.kategori_pesanan);
-        setBerat(data.berat.toString());
-        setLayanan(data.layanan);
-        setTotalHarga(data.total_harga.toString());
+        // PERBAIKAN: Membaca data dari objek customer hasil join laravel
+        setNama(data.customer?.username || '');
+        setNomorHp(data.customer?.nomor_hp || '');
+        setAlamat(data.customer?.alamat || '');
+        
+        setBerat(data.berat ? data.berat.toString() : '0');
+        setTotalHarga(data.total_harga ? data.total_harga.toString() : '0');
       } catch (error) {
+        console.error(error);
         Alert.alert("Error", "Gagal mengambil detail data");
         router.back();
       } finally {
         setLoading(false);
       }
     };
-    fetchDetail();
+    if (id) fetchDetail();
   }, [id]);
 
   // 2. Fungsi Simpan Perubahan
   const handleUpdate = async () => {
-    if (!nama || !nomorHp || !berat || !totalHarga) {
+    if (!nama || !nomorHp || !alamat || !berat || !totalHarga) {
       Alert.alert("Peringatan", "Data penting tidak boleh kosong!");
       return;
     }
 
     setUpdating(true);
     try {
+      // Mengirimkan payload yang cocok dengan validasi Laravel OrderController->update
       await axios.put(`${API_URL}/orders/${id}`, {
         nama_pelanggan: nama,
         nomor_hp: nomorHp,
         alamat: alamat,
-        kategori_pesanan: kategori,
         berat: parseFloat(berat),
-        layanan: layanan,
         total_harga: parseInt(totalHarga)
       });
 
       Alert.alert("Berhasil", "Pesanan telah diperbarui!");
-      router.replace('/(admin)'); // Balik ke dashboard
-    } catch (error) {
-      Alert.alert("Gagal", "Terjadi kesalahan saat menyimpan data");
+      router.replace('/(admin)'); // Balik ke dashboard admin
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert("Gagal", error.response?.data?.message || "Terjadi kesalahan saat menyimpan data");
     } finally {
       setUpdating(false);
     }
@@ -84,7 +83,7 @@ export default function EditPesan() {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#673AB7" />
-        <Text>Memuat data...</Text>
+        <Text style={{ marginTop: 10 }}>Memuat data...</Text>
       </View>
     );
   }

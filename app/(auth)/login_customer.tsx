@@ -17,25 +17,27 @@ export default function LoginCustomer() {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/login-customer`, {
+      // PERBAIKAN 1: Mengubah endpoint target ke '/orders/check-status' sesuai routes/api.php baru
+      const response = await axios.post(`${API_URL}/orders/check-status`, {
         nomor_hp: hp
       });
 
-      // PERBAIKAN DI SINI:
-      // Laravel mengirim { success: true, username: '...', nomor_hp: '...' }
-      // Jadi kita ambil langsung dari response.data
+      // PERBAIKAN 2: Menyesuaikan pembacaan data nested JSON dari Laravel baru
+      // Laravel mengembalikan: { success: true, customer: { username: '...', nomor_hp: '...' }, order: {...} }
       if (response.data.success) {
+        const customerData = response.data.customer;
+
         router.replace({
           pathname: '/(customer)',
           params: { 
-            username: response.data.username, 
-            nomor_hp: response.data.nomor_hp 
+            username: customerData.username, 
+            nomor_hp: customerData.nomor_hp 
           }
         });
       }
       
     } catch (error: any) {
-      // Jika error 404 (Nomor tidak ada di tabel orders), pesan dari Laravel akan muncul di sini
+      // Menangkap pesan error 404 dari Laravel jika nomor HP belum terdaftar di tabel customers
       const msg = error.response?.data?.message || "Nomor HP tidak terdaftar atau koneksi terputus.";
       Alert.alert("Gagal Login", msg);
     } finally {
@@ -60,7 +62,6 @@ export default function LoginCustomer() {
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>MASUK & CEK STATUS</Text>}
       </TouchableOpacity>
 
-      {/* Sesuai saran sidang proposal: Link daftar ini bisa kamu hapus nanti jika sudah fix */}
       <TouchableOpacity onPress={() => Alert.alert("Info", "Akun otomatis terdaftar saat Anda mencuci di laundry kami.")}>
         <Text style={styles.link}>Cara cek status? Cukup masukkan nomor HP</Text>
       </TouchableOpacity>

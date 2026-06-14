@@ -16,20 +16,30 @@ import axios from 'axios';
 import { API_URL } from '../config'; 
 import { Ionicons } from '@expo/vector-icons'; 
 
-interface Order {
+// TYPE DEFINITION BARU: Menyesuaikan JSON Relasi Laravel
+type Customer = {
   id: number;
-  nama_pelanggan: string;
+  username: string;
   nomor_hp: string;
   alamat: string;
-  kategori_pesanan: string;
-  jenis_satuan: string;
-  tipe_paket: string;
+};
+
+type ServiceRelasi = {
+  id: number;
+  nama_layanan: string;
+};
+
+type Order = {
+  id: number;
+  id_pelanggan: number;
+  id_services: number;
   berat: number;
-  layanan: string;
   status: string;
   total_harga: number;
   created_at: string;
-}
+  customer?: Customer;
+  service?: ServiceRelasi;
+};
 
 export default function CustomerDashboard() {
   const { username, nomor_hp } = useLocalSearchParams();
@@ -64,22 +74,32 @@ export default function CustomerDashboard() {
     }, [])
   );
 
-  const activeOrdersCount = orders.filter(item => item.status !== 'Diambil').length;
+  // Menghitung cucian aktif (abaikan status diambil / selesai jika mau)
+  const activeOrdersCount = orders.filter(item => item.status.toLowerCase() !== 'diambil').length;
 
-  const fetchMyOrders = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${API_URL}/orders`);
-      const allOrders = response.data.data || [];
-      const myData = allOrders.filter((item: Order) => item.nomor_hp === nomor_hp);
-      setOrders(myData);
-    } catch (error) {
-      console.error("Gagal ambil data customer:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+const fetchMyOrders = async () => {
+  try {
+    setLoading(true);
+    
+    // Tembak endpoint check-status membawa parameter nomor_hp
+    const response = await axios.post(`${API_URL}/orders/check-status`, {
+      nomor_hp: nomor_hp,
+    });
+    
+    // PERBAIKAN: Langsung masukkan array 'orders' dari Laravel ke dalam state
+    if (response.data.success && response.data.orders) {
+      setOrders(response.data.orders); // <--- Sudah otomatis berbentuk Array []
+    } else {
+      setOrders([]);
     }
-  };
+  } catch (error: any) {
+    console.error("Gagal ambil data customer:", error);
+    setOrders([]);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
 
   useEffect(() => {
     if (nomor_hp) {
@@ -87,7 +107,6 @@ export default function CustomerDashboard() {
     }
   }, [nomor_hp]);
 
-  // FUNGSI LOGOUT CUSTOMER FIX
   const handleLogout = () => {
     Alert.alert("Logout", "Apakah anda yakin ingin keluar dari akun pelanggan?", [
       { text: "Batal", style: "cancel" },
@@ -95,8 +114,6 @@ export default function CustomerDashboard() {
         text: "Keluar", 
         style: "destructive", 
         onPress: () => {
-          // Navigasi langsung ke halaman login customer
-          // Pastikan path ini sesuai dengan struktur folder auth kamu
           router.replace('/(auth)/login_customer'); 
         } 
       }
@@ -105,6 +122,7 @@ export default function CustomerDashboard() {
 
   return (
     <View style={styles.container}>
+      {/* HEADER */}
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeText}>Halo, Pelanggan Setia</Text>
@@ -115,6 +133,7 @@ export default function CustomerDashboard() {
         </TouchableOpacity>
       </View>
 
+      {/* STATS AREA */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Total Cucian Aktif</Text>
@@ -146,13 +165,14 @@ export default function CustomerDashboard() {
           renderItem={({ item }) => (
             <View style={styles.orderCard}>
               <View style={styles.cardHeader}>
-                <View>
-                  <Text style={styles.layananText}>{item.layanan}</Text>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  {/* MEMANGGIL NAMA LAYANAN VIA RELASI OBJECT */}
+                  <Text style={styles.layananText}>{item.service?.nama_layanan || 'Layanan Laundry'}</Text>
                   <Text style={styles.dateText}>ID Pesanan: #00{item.id}</Text>
                 </View>
                 <View style={[
                   styles.statusBadge, 
-                  { backgroundColor: item.status === 'Diambil' ? '#4CAF50' : '#FF9800' }
+                  { backgroundColor: item.status.toLowerCase() === 'diambil' ? '#4CAF50' : '#FF9800' }
                 ]}>
                   <Text style={styles.statusText}>{item.status ? item.status.toUpperCase() : 'ANTRE'}</Text>
                 </View>
@@ -161,19 +181,20 @@ export default function CustomerDashboard() {
               <View style={styles.cardBody}>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Kategori:</Text>
-                  <Text style={styles.infoValue}>{item.kategori_pesanan} ({item.tipe_paket || 'Satuan'})</Text>
+                  <Text style={styles.infoValue}>{item.berat > 0 ? 'Kiloan' : 'Satuan'}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Detail:</Text>
                   <Text style={styles.infoValue}>
-                    {item.kategori_pesanan === 'Kiloan' ? `${item.berat} Kg` : item.jenis_satuan}
+                    {item.berat > 0 ? `${item.berat} Kg` : 'Paket Satuan'}
                   </Text>
                 </View>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Alamat:</Text>
-                  <Text style={styles.infoValue} numberOfLines={1}>{item.alamat || '-'}</Text>
+                  <Text style={styles.infoLabel}>Alamat Kirim:</Text>
+                  {/* MEMANGGIL ALAMAT VIA RELASI CUSTOMER */}
+                  <Text style={styles.infoValue} numberOfLines={1}>{item.customer?.alamat || '-'}</Text>
                 </View>
               </View>
 
@@ -207,10 +228,10 @@ const styles = StyleSheet.create({
   statValueSmall: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: 8 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#333' },
   orderCard: { backgroundColor: '#fff', borderRadius: 18, padding: 18, marginBottom: 15, elevation: 2, borderTopWidth: 4, borderTopColor: '#673AB7' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-  layananText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  dateText: { fontSize: 12, color: '#AAA' },
-  statusBadge: { paddingVertical: 10, paddingHorizontal: 10, borderRadius: 8 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  layananText: { fontSize: 16, fontWeight: 'bold', color: '#333', flexWrap: 'wrap' },
+  dateText: { fontSize: 12, color: '#AAA', marginTop: 2 },
+  statusBadge: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   statusText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   cardBody: { backgroundColor: '#F9F9F9', borderRadius: 12, padding: 12, marginBottom: 15 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },

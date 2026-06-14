@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -67,7 +67,7 @@ export default function LaporanAdmin() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Laporan Pemasukan</Text>
+      <Text style={styles.title}>Laporan Pendapatan</Text>
 
       {/* Filter Periode */}
       <View style={styles.filterContainer}>
@@ -103,13 +103,19 @@ export default function LaporanAdmin() {
           keyExtractor={(item: any) => item.id.toString()}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchLaporan()} />}
           ListEmptyComponent={<Text style={styles.emptyText}>Tidak ada pemasukan di periode ini.</Text>}
-          renderItem={({ item }) => (
+          renderItem={({ item }: { item: any }) => (
             <View style={styles.historyItem}>
-              <View>
-                <Text style={styles.custName}>{item.nama_pelanggan}</Text>
-                <Text style={styles.dateText}>{item.layanan} - {new Date(item.created_at).toLocaleDateString('id-ID')}</Text>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={styles.custName}>
+                  {item.customer?.username || 'Pelanggan Anonim'}
+                </Text>
+                <Text style={styles.dateText}>
+                  {item.service?.nama_layanan || 'Layanan'} 
+                  {item.jenis_satuan ? ` (${item.jenis_satuan})` : ''} 
+                  {` - ${new Date(item.created_at).toLocaleDateString('id-ID')}`}
+                </Text>
               </View>
-              <Text style={styles.priceText}>+ Rp {item.total_harga.toLocaleString('id-ID')}</Text>
+              <Text style={styles.priceText}>+ Rp {item.total_harga?.toLocaleString('id-ID')}</Text>
             </View>
           )}
         />
@@ -124,7 +130,7 @@ const styles = StyleSheet.create({
   filterContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 10, borderRadius: 12, elevation: 2, marginBottom: 20 },
   filterText: { fontSize: 16, fontWeight: 'bold', color: '#673AB7' },
   filterArrow: { fontSize: 24, fontWeight: 'bold', color: '#673AB7', paddingHorizontal: 20 },
-  mainCard: { backgroundColor: '#673AB7', padding: 20, borderRadius: 20, elevation: 5, marginBottom: 25 },
+  mainCard: { backgroundColor: '#4CAF50', padding: 20, borderRadius: 20, elevation: 5, marginBottom: 25 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardLabel: { color: '#E1D5F5', fontSize: 14 },
   btnPdf: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 },
@@ -134,7 +140,7 @@ const styles = StyleSheet.create({
   subText: { color: '#fff', fontSize: 14, opacity: 0.9 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: '#555' },
   historyItem: { backgroundColor: '#fff', padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#4CAF50' },
-  custName: { fontWeight: 'bold', fontSize: 15 },
+  custName: { fontWeight: 'bold', fontSize: 15, marginBottom: 2 },
   dateText: { fontSize: 12, color: '#888' },
   priceText: { color: '#4CAF50', fontWeight: 'bold', fontSize: 16 },
   emptyText: { textAlign: 'center', marginTop: 30, color: '#999' }
