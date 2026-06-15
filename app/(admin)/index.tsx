@@ -223,7 +223,7 @@ export default function AdminDashboard() {
         <View style={styles.heroLeftSection}>
           <Text style={styles.heroCardLabel}>TOTAL ANTRIAN</Text>
           <Text style={styles.heroCardNumber}>{total}</Text>
-          <Text style={styles.heroCardSub}>Nota Menunggu</Text>
+          {/* <Text style={styles.heroCardSub}>Nota Menunggu</Text> */}
         </View>
         
         <View style={styles.heroRightSection}>

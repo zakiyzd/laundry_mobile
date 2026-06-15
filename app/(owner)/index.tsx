@@ -10,7 +10,8 @@ import {
   Modal,
   Alert,
   BackHandler,
-  ToastAndroid
+  ToastAndroid,
+  TextInput
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
@@ -20,6 +21,8 @@ import { Ionicons } from '@expo/vector-icons';
 export default function DashboardOwner() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -47,22 +50,32 @@ export default function DashboardOwner() {
     }, [])
   );
 
-  // FIX AMBIL DATA RELASI BARU
+  // AMBIL DATA RELASI BARU
   const fetchDataSelesai = async () => {
     try {
       const response = await axios.get(`${API_URL}/orders`);
       const rawData = Array.isArray(response.data) ? response.data : response.data.data;
 
       if (rawData && Array.isArray(rawData)) {
-        // PERBAIKAN 1: Mengubah 'Diambil' menjadi 'diambil' (Huruf kecil menyesuaikan DB baru)
         const dataSelesai = rawData.filter((item: any) => item.status === 'diambil');
         setOrders(dataSelesai);
+        
+        if (searchQuery.trim() === '') {
+          setFilteredOrders(dataSelesai);
+        } else {
+          const filtered = dataSelesai.filter((item: any) =>
+            item.customer?.username?.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+          setFilteredOrders(filtered);
+        }
       } else {
         setOrders([]);
+        setFilteredOrders([]);
       }
     } catch (error) {
       console.error("Gagal mengambil data owner:", error);
       setOrders([]);
+      setFilteredOrders([]);
     }
   };
 
@@ -74,7 +87,20 @@ export default function DashboardOwner() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchDataSelesai().finally(() => setRefreshing(false));
-  }, []);
+  }, [searchQuery]);
+
+  // LOGIKA FILTER PENCARIAN NAMA
+  const handleSearch = (text: string) => {
+    setSearchQuery(text);
+    if (text.trim() === '') {
+      setFilteredOrders(orders);
+    } else {
+      const filtered = orders.filter((item: any) =>
+        item.customer?.username?.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredOrders(filtered);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert("Logout", "Apakah anda yakin ingin keluar?", [
@@ -85,10 +111,14 @@ export default function DashboardOwner() {
 
   return (
     <View style={styles.container}>
+      {/* HEADER BAR PREMIUM */}
       <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Panel Owner Laundry</Text>
-        <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.profileBtn}>
-          <Ionicons name="person-circle-outline" size={32} color="#673AB7" />
+        <View>
+          <Text style={styles.headerSubtitle}>Selamat Datang,</Text>
+          <Text style={styles.headerTitle}>Panel Owner</Text>
+        </View>
+        <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.avatarWrapper}>
+          <Ionicons name="person" size={20} color="#673AB7" />
         </TouchableOpacity>
       </View>
 
@@ -130,79 +160,100 @@ export default function DashboardOwner() {
         </TouchableOpacity>
       </Modal>
 
-      <View style={styles.row}>
+      {/* FIX: LAYOUT TOMBOL LAPORAN SAMPINGAN KANAN KIRI CERAH DAN MODERN */}
+      <View style={styles.menuRowSejajar}>
         <TouchableOpacity 
-          style={[styles.cardNav, { backgroundColor: '#4CAF50' }]}
-          onPress={() => router.push('/(admin)/laporan' as any)} // Disesuaikan ke file laporan.tsx kita tadi
+          style={[styles.btnMenuHalf, { backgroundColor: '#4CAF50' }]}
+          onPress={() => router.push('/(admin)/laporan' as any)}
         >
+          <Ionicons name="receipt" size={18} color="white" style={{ marginBottom: 4 }} />
           <Text style={styles.cardLabel}>Cek</Text>
           <Text style={styles.cardTitle}>Laporan Pemasukan</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.cardNav, { backgroundColor: '#D32F2F' }]}
+          style={[styles.btnMenuHalf, { backgroundColor: '#D32F2F' }]}
           onPress={() => router.push('/(owner)/laporan-pengeluaran' as any)}
         >
+          <Ionicons name="wallet" size={18} color="white" style={{ marginBottom: 4 }} />
           <Text style={styles.cardLabel}>Cek</Text>
           <Text style={styles.cardTitle}>Laporan Pengeluaran</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionTitle}>Riwayat Cucian (Selesai)</Text>
+      {/* SEARCH ROW SEJAJAR JUDUL */}
+      <View style={styles.searchRow}>
+        <Text style={styles.sectionTitle}>Riwayat Cucian</Text>
+        <View style={styles.searchBarContainer}>
+          <Ionicons name="search" size={13} color="#A0A0A0" style={{ marginRight: 6 }} />
+          <TextInput 
+            style={styles.searchInputField} 
+            placeholder="Cari nama..." 
+            placeholderTextColor="#A0A0A0"
+            value={searchQuery} 
+            onChangeText={handleSearch} 
+          />
+        </View>
+      </View>
 
+      {/* FEED LIST ORDER RIWAYAT */}
       {loading ? (
         <ActivityIndicator size="large" color="#673AB7" style={{ marginTop: 50 }} />
       ) : (
         <FlatList
-          data={orders}
+          data={filteredOrders}
           keyExtractor={(item: any) => item.id.toString()}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 30 }}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>Belum ada riwayat transaksi selesai.</Text>
+            <Text style={styles.emptyText}>Tidak ada riwayat transaksi yang cocok.</Text>
           }
           renderItem={({ item }) => (
-            <View style={styles.orderCard}>
-              <View style={styles.cardTopAccent} />
-              <View style={styles.orderHeader}>
-                {/* PERBAIKAN 2: Mengambil nama dari object customer */}
-                <Text style={styles.customerName}>{item.customer?.username || 'Pelanggan'}</Text>
-                {/* PERBAIKAN 3: Mengambil nama layanan master dari object service */}
-                <Text style={styles.serviceName}>{item.service?.nama_layanan || 'Layanan'}</Text>
+            <View style={styles.neoOrderCard}>
+              <View style={styles.cardMainHeader}>
+                <View>
+                  <Text style={styles.neoCustName}>{item.customer?.username || 'Pelanggan'}</Text>
+                  <Text style={styles.neoDateText}>📅 {item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</Text>
+                </View>
+                <View style={styles.capsuleBadge}>
+                  <View style={styles.dotIndicator} />
+                  <Text style={styles.capsuleBadgeText}>SUKSES DIAMBIL</Text>
+                </View>
               </View>
 
-              <View style={styles.detailBox}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Tanggal :</Text>
-                  <Text style={styles.detailValue}>
-                    {item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-'}
+              {/* DETAILS METADATA BOX */}
+              <View style={styles.metaDataContainer}>
+                <View style={styles.metaRow}>
+                  <Ionicons name="cube-outline" size={13} color="#777" />
+                  <Text style={styles.metaText}>
+                    Kategori: {item.berat > 0 ? 'Kiloan' : 'Satuan'} {item.jenis_satuan ? `(${item.jenis_satuan})` : ''}
                   </Text>
+                </View>
+
+                <View style={styles.metaRow}>
+                  <Ionicons name="scale-outline" size={13} color="#777" />
+                  <Text style={styles.metaText}>
+                    Detail: {item.berat > 0 ? `${parseFloat(item.berat).toFixed(2).replace(/\.?0+$/, "")} Kg` : 'Paket Per Item'}
+                  </Text>
+                </View>
+
+                <View style={styles.metaRow}>
+                  <Ionicons name="location-outline" size={13} color="#777" />
+                  <Text style={styles.metaText} numberOfLines={1}>Alamat: {item.customer?.alamat || item.alamat || '-'}</Text>
                 </View>
                 
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Kategori :</Text>
-                  <Text style={styles.detailValue}>
-                    {/* PERBAIKAN 4: Kondisional penentu kategori kiloan vs satuan */}
-                    {item.berat > 0 ? 'Kiloan' : 'Satuan'} {item.jenis_satuan ? `(${item.jenis_satuan})` : ''}
-                  </Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Detail Berat :</Text>
-                  <Text style={styles.detailValue}>
-                    {item.berat > 0 ? `${parseFloat(item.berat).toFixed(2).replace(/\.?0+$/, "")} Kg` : 'Paket Per Item'}
-                  </Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Alamat :</Text>
-                  {/* PERBAIKAN 5: Mengambil dari alamat object customer baru */}
-                  <Text style={styles.detailValue}>{item.customer?.alamat || item.alamat || '-'}</Text>
-                </View>
+                <View style={styles.innerCardDivider} />
+                
+                <Text style={styles.textServiceTitle}>
+                  Layanan: <Text style={{ color: '#673AB7' }}>{item.service?.nama_layanan || 'Layanan'}</Text>
+                </Text>
               </View>
 
-              <View style={styles.cardFooter}>
-                <Text style={styles.totalLabel}>Total Bayar :</Text>
-                <Text style={styles.totalValue}>Rp {Number(item.total_harga).toLocaleString('id-ID')}</Text>
+              {/* FOOTER TOTAL BAYAR */}
+              <View style={styles.cardFooterArea}>
+                <Text style={styles.priceMetaLabel}>TOTAL BAYAR</Text>
+                <Text style={styles.priceMetaValue}>Rp {Number(item.total_harga).toLocaleString('id-ID')}</Text>
               </View>
             </View>
           )}
@@ -213,31 +264,51 @@ export default function DashboardOwner() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 50 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#673AB7' },
-  profileBtn: { padding: 5 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)', justifyContent: 'flex-start', alignItems: 'flex-end' },
-  menuBox: { backgroundColor: '#fff', marginTop: 85, marginRight: 20, borderRadius: 12, padding: 8, width: 190, elevation: 4 },
+  container: { flex: 1, backgroundColor: '#F4F6FA', paddingHorizontal: 20 },
+  
+  // HEADER BAR STYLES
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 50, marginBottom: 25 },
+  headerSubtitle: { fontSize: 13, color: '#8E8E93', fontWeight: '500', letterSpacing: 0.5 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1C1C1E', marginTop: 1 },
+  avatarWrapper: { backgroundColor: '#EFEFF4', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#E5E5EA' },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.1)', justifyContent: 'flex-start', alignItems: 'flex-end' },
+  menuBox: { backgroundColor: '#fff', marginTop: 95, marginRight: 20, borderRadius: 12, padding: 8, width: 180, elevation: 5 },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12 },
   menuItemText: { marginLeft: 10, fontSize: 14, fontWeight: '500', color: '#333' },
   menuDivider: { height: 1, backgroundColor: '#eee', marginVertical: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
-  cardNav: { width: '48%', padding: 15, borderRadius: 15, elevation: 3 },
-  cardLabel: { color: '#eee', fontSize: 11 },
-  cardTitle: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: 5 },
-  sectionTitle: { fontSize: 16, color: '#333', marginBottom: 15, fontWeight: '600' },
-  orderCard: { backgroundColor: '#fff', borderRadius: 15, elevation: 4, marginBottom: 20, overflow: 'hidden', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  cardTopAccent: { height: 8, backgroundColor: '#673AB7' },
-  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, paddingBottom: 10 },
-  customerName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  serviceName: { fontSize: 14, fontWeight: 'bold', color: '#673AB7' },
-  detailBox: { backgroundColor: '#f5f5f5', marginHorizontal: 15, padding: 10, borderRadius: 10 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  detailLabel: { color: '#888', fontSize: 13 },
-  detailValue: { color: '#444', fontSize: 13, fontWeight: 'bold' },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, alignItems: 'center' },
-  totalLabel: { color: '#888', fontSize: 13 },
-  totalValue: { color: '#673AB7', fontWeight: 'bold', fontSize: 15 },
+
+  // STYLING BARU: TOMBOL SAKLAR SEJAJAR KANAN KIRI KASIR ADMIN STYLE
+  menuRowSejajar: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 25 },
+  btnMenuHalf: { flex: 1, padding: 16, borderRadius: 18, elevation: 3, justifyContent: 'center' },
+  cardLabel: { color: 'rgba(255, 255, 255, 0.75)', fontSize: 11, fontWeight: '500' },
+  cardTitle: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 2 },
+
+  // SEARCH BAR & TITLE ROW
+  searchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1C1C1E' },
+  searchBarContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6, width: '50%' },
+  searchInputField: { flex: 1, fontSize: 12, color: '#1C1C1E', padding: 0 },
+  
+  // PREMIUM FLAT RIWAYAT CARD
+  neoOrderCard: { backgroundColor: '#FFF', borderRadius: 22, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#EAEAEA', elevation: 1 },
+  cardMainHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  neoCustName: { fontSize: 16, fontWeight: '800', color: '#1C1C1E' },
+  neoDateText: { fontSize: 11, color: '#8E8E93', marginTop: 3, fontWeight: '500' },
+  
+  // CAPSULE BADGE PASTEL STYLE
+  capsuleBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, gap: 5 },
+  dotIndicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4CAF50' },
+  capsuleBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3, color: '#2E7D32' },
+  
+  metaDataContainer: { marginVertical: 14, backgroundColor: '#F8F9FA', padding: 14, borderRadius: 16 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 5 },
+  metaText: { fontSize: 12, color: '#555', fontWeight: '500' },
+  innerCardDivider: { height: 1, backgroundColor: '#EAEAEA', marginVertical: 10 },
+  textServiceTitle: { fontSize: 13, fontWeight: '800', color: '#1C1C1E' },
+  
+  cardFooterArea: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, paddingHorizontal: 2 },
+  priceMetaLabel: { fontSize: 10, color: '#8E8E93', fontWeight: '700', letterSpacing: 0.5 },
+  priceMetaValue: { fontSize: 18, fontWeight: '900', color: '#673AB7' },
   emptyText: { textAlign: 'center', color: '#999', marginTop: 50, fontSize: 14 }
 });

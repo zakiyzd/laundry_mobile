@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../config';
+import { Ionicons } from '@expo/vector-icons'; 
 
 export default function TambahPengeluaran() {
   const [nama, setNama] = useState('');
@@ -21,12 +22,10 @@ export default function TambahPengeluaran() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   
-  // State untuk Filter & Total
   const [bulanDipilih, setBulanDipilih] = useState(new Date().getMonth() + 1);
   const [tahunDipilih, setTahunDipilih] = useState(new Date().getFullYear());
   const [totalAkumulasi, setTotalAkumulasi] = useState(0);
 
-  // Fetch data setiap kali bulan/tahun berubah
   useEffect(() => {
     fetchExpenses();
   }, [bulanDipilih, tahunDipilih]);
@@ -38,7 +37,6 @@ export default function TambahPengeluaran() {
       });
       setExpenses(response.data);
       
-      // Hitung Total Otomatis
       const total = response.data.reduce((sum: number, item: any) => sum + Number(item.total_harga), 0);
       setTotalAkumulasi(total);
     } catch (error) {
@@ -72,6 +70,29 @@ export default function TambahPengeluaran() {
     }
   };
 
+  const handleDelete = (id: number) => {
+    Alert.alert(
+      "Konfirmasi Hapus",
+      "Apakah Anda yakin ingin menghapus data pengeluaran ini?",
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Hapus", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await axios.delete(`${API_URL}/expenses/${id}`);
+              Alert.alert("Sukses", "Data berhasil dihapus");
+              fetchExpenses(); 
+            } catch (error) {
+              Alert.alert("Gagal", "Gagal menghapus data dari server");
+            }
+          } 
+        }
+      ]
+    );
+  };
+
   const downloadLaporan = () => {
     const url = `${API_URL}/expenses/pdf?bulan=${bulanDipilih}&tahun=${tahunDipilih}`;
     Linking.openURL(url).catch(err => Alert.alert("Error", "Tidak bisa membuka link unduhan"));
@@ -99,18 +120,31 @@ export default function TambahPengeluaran() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Laporan Pengeluaran</Text>
+      {/* HEADER SECTION DENGAN AKSES PRINT MINIMALIS */}
+      <View style={styles.headerContainer}>
+        <View>
+          <Text style={styles.headerTitle}>Input Pengeluaran</Text>
+        </View>
+        <TouchableOpacity style={styles.btnPdfHeader} onPress={downloadLaporan}>
+          <Ionicons name="cloud-download-outline" size={18} color="#D32F2F" />
+          <Text style={styles.btnPdfTextHeader}>PDF</Text>
+        </TouchableOpacity>
+      </View>
       
-      {/* <View style={styles.formCard}>
+      
+      {/* FORM INPUT DENGAN DESAIN MODERN CLEAN
+      <View style={styles.formCard}>
         <TextInput 
           style={styles.input} 
-          placeholder="Nama Pengeluaran (misal: Sabun)" 
+          placeholder="Nama pengeluaran (misal: Sabun)" 
+          placeholderTextColor="#A0A0A0"
           value={nama} 
           onChangeText={setNama} 
         />
         <TextInput 
           style={styles.input} 
-          placeholder="Total Harga (Rp)" 
+          placeholder="Total harga (Rp)" 
+          placeholderTextColor="#A0A0A0"
           keyboardType="numeric" 
           value={totalHarga} 
           onChangeText={setTotalHarga} 
@@ -120,43 +154,74 @@ export default function TambahPengeluaran() {
           onPress={handleSimpan} 
           disabled={loading}
         >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>SIMPAN PENGELUARAN</Text>}
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.btnText}>SIMPAN DATA PENGELUARAN</Text>
+          )}
         </TouchableOpacity>
       </View> */}
 
-      {/* Ringkasan & Filter */}
+      {/* METRIC HERO CARD TOTAL AKUMULASI (MODERN DARK STYLE) */}
       <View style={styles.summaryCard}>
-        <View>
-          <Text style={styles.summaryLabel}>Total {namaBulan}:</Text>
+        <View style={styles.summaryLeft}>
+          <Text style={styles.summaryLabel}>AKUMULASI PENGELUARAN</Text>
           <Text style={styles.summaryValue}>Rp {totalAkumulasi.toLocaleString('id-ID')}</Text>
         </View>
-        <TouchableOpacity style={styles.btnPdf} onPress={downloadLaporan}>
-          <Text style={styles.btnPdfText}>CETAK PDF</Text>
-        </TouchableOpacity>
+        <View style={styles.summaryRightBadge}>
+          <Text style={styles.summaryMonthBadgeText}>{namaBulan.toUpperCase()}</Text>
+        </View>
       </View>
 
-      <View style={styles.filterContainer}>
-        <TouchableOpacity onPress={() => gantiBulan('prev')}>
-          <Text style={styles.filterArrow}>{"<"}</Text>
-        </TouchableOpacity>
-        <Text style={styles.filterText}>{namaBulan} {tahunDipilih}</Text>
-        <TouchableOpacity onPress={() => gantiBulan('next')}>
-          <Text style={styles.filterArrow}>{">"}</Text>
-        </TouchableOpacity>
+      {/* FILTER CAROUSEL MONTH SEJAJAR JUDUL LIST */}
+      <View style={styles.listHeadingRow}>
+        <Text style={styles.sectionHeading}>Daftar Log</Text>
+        
+        <View style={styles.filterContainer}>
+          <TouchableOpacity onPress={() => gantiBulan('prev')} style={styles.arrowClickable}>
+            <Ionicons name="chevron-back" size={14} color="#D32F2F" />
+          </TouchableOpacity>
+          <Text style={styles.filterText}>{namaBulan} {tahunDipilih}</Text>
+          <TouchableOpacity onPress={() => gantiBulan('next')} style={styles.arrowClickable}>
+            <Ionicons name="chevron-forward" size={14} color="#D32F2F" />
+          </TouchableOpacity>
+        </View>
       </View>
 
+      {/* LIST DATA LOG PENGELUARAN */}
       <FlatList
         data={expenses}
         keyExtractor={(item: any) => item.id.toString()}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchExpenses().then(()=>setRefreshing(false))}} />}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 30 }}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={() => { setRefreshing(true); fetchExpenses().then(() => setRefreshing(false)); }} 
+            colors={["#D32F2F"]}
+          />
+        }
         ListEmptyComponent={<Text style={styles.emptyText}>Tidak ada data di bulan ini.</Text>}
         renderItem={({ item }) => (
           <View style={styles.itemCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.itemName}>{item.nama_barang}</Text>
-              <Text style={styles.itemDate}>{new Date(item.created_at).toLocaleDateString('id-ID')}</Text>
+            <View style={styles.iconPastelContainer}>
+              <Ionicons name="cart" size={16} color="#D32F2F" />
             </View>
-            <Text style={styles.itemTotal}>Rp {Number(item.total_harga).toLocaleString('id-ID')}</Text>
+            
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.itemName}>{item.nama_barang}</Text>
+              <Text style={styles.itemDate}>
+                📅 {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </Text>
+            </View>
+            
+            <View style={styles.itemRight}>
+              <Text style={styles.itemTotal}>Rp {Number(item.total_harga).toLocaleString('id-ID')}</Text>
+              
+              <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteIconWrapper}>
+                <Ionicons name="trash" size={14} color="#E53935" />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       />
@@ -165,26 +230,44 @@ export default function TambahPengeluaran() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f5f5f5', paddingTop: 50 },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, color: '#D32F2F', textAlign: 'center' },
-  formCard: { backgroundColor: '#fff', padding: 20, borderRadius: 15, elevation: 3, marginBottom: 20 },
-  input: { borderWidth: 1, borderColor: '#ddd', padding: 12, borderRadius: 10, marginBottom: 15, fontSize: 16 },
-  btnSimpan: { backgroundColor: '#D32F2F', padding: 15, borderRadius: 10, alignItems: 'center' },
-  btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  container: { flex: 1, paddingHorizontal: 20, backgroundColor: '#F4F6FA' },
   
-  summaryCard: { backgroundColor: '#D32F2F', padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  summaryLabel: { color: '#fff', fontSize: 12 },
-  summaryValue: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  btnPdf: { backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 8 },
-  btnPdfText: { color: '#D32F2F', fontWeight: 'bold', fontSize: 12 },
+  // HEADER BAR STYLES
+  headerContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 50, marginBottom: 20 },
+  headerSubtitle: { fontSize: 13, color: '#8E8E93', fontWeight: '500', letterSpacing: 0.5 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1C1C1E', marginTop: 1 },
+  btnPdfHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 12, gap: 4, elevation: 1 },
+  btnPdfTextHeader: { color: '#D32F2F', fontWeight: '800', fontSize: 12 },
 
-  filterContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 10, borderRadius: 10, elevation: 1, marginBottom: 15 },
-  filterText: { fontSize: 14, fontWeight: 'bold', color: '#333' },
-  filterArrow: { fontSize: 20, fontWeight: 'bold', color: '#D32F2F', paddingHorizontal: 15 },
+  // FORM CARD MODERNISED
+  formCard: { backgroundColor: '#fff', padding: 18, borderRadius: 22, borderWidth: 1, borderColor: '#EAEAEA', marginBottom: 15, elevation: 1 },
+  input: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#ECEFF1', padding: 12, borderRadius: 14, marginBottom: 12, fontSize: 14, color: '#1C1C1E', fontWeight: '500' },
+  btnSimpan: { backgroundColor: '#D32F2F', padding: 15, borderRadius: 16, alignItems: 'center', elevation: 2 },
+  btnText: { color: 'white', fontWeight: '800', fontSize: 13, letterSpacing: 0.5 },
+  
+  // TOTAL SUMMARY HERO CARD STYLE
+  summaryCard: { backgroundColor: '#D32F2F', padding: 18, borderRadius: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, elevation: 2 },
+  summaryLeft: { flex: 1 },
+  summaryLabel: { color: '#ffffffff', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  summaryValue: { color: '#fff', fontSize: 22, fontWeight: '900', marginTop: 2 },
+  summaryRightBadge: { backgroundColor: 'rgba(211, 47, 47, 0.2)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.3)', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12 },
+  summaryRightBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  summaryMonthBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
 
-  itemCard: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderLeftWidth: 5, borderLeftColor: '#D32F2F' },
-  itemName: { fontSize: 15, fontWeight: 'bold', color: '#333' },
-  itemDate: { fontSize: 11, color: '#888' },
-  itemTotal: { fontSize: 15, fontWeight: 'bold', color: '#D32F2F' },
-  emptyText: { textAlign: 'center', marginTop: 20, color: '#999' }
+  // LIST HEADING ROW WITH COMPACT FILTER
+  listHeadingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  sectionHeading: { fontSize: 16, fontWeight: '800', color: '#1C1C1E' },
+  filterContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, paddingVertical: 4, paddingHorizontal: 6 },
+  filterText: { fontSize: 12, fontWeight: '700', color: '#444', marginHorizontal: 4 },
+  arrowClickable: { padding: 4 },
+
+  // MODERN LOG CARDS
+  itemCard: { backgroundColor: '#fff', padding: 14, borderRadius: 18, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#EAEAEA', elevation: 1 },
+  iconPastelContainer: { padding: 10, backgroundColor: '#FFEBEE', borderRadius: 12 },
+  itemName: { fontSize: 15, fontWeight: '800', color: '#1C1C1E' },
+  itemDate: { fontSize: 11, color: '#8E8E93', marginTop: 3, fontWeight: '500' },
+  itemRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  itemTotal: { fontSize: 15, fontWeight: '900', color: '#D32F2F' },
+  deleteIconWrapper: { padding: 8, backgroundColor: '#F2F2F7', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { textAlign: 'center', marginTop: 30, color: '#999', fontSize: 13, fontWeight: '500' }
 });
