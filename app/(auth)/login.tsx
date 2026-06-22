@@ -33,7 +33,7 @@ export default function LoginScreen() {
 
       // Logika Navigasi berdasarkan Role
       if (user.role === 'admin') {
-        Alert.alert('Berhasil', `Halo Admin ${user.name}, selamat bekerja!`);
+        Alert.alert('Berhasil', `Halo ${user.name}, selamat bekerja!`);
         router.replace('/(admin)');
       } 
       else if (user.role === 'owner') {

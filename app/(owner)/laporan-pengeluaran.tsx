@@ -123,7 +123,7 @@ export default function TambahPengeluaran() {
       {/* HEADER SECTION DENGAN AKSES PRINT MINIMALIS */}
       <View style={styles.headerContainer}>
         <View>
-          <Text style={styles.headerTitle}>Input Pengeluaran</Text>
+          <Text style={styles.headerTitle}>Laporan Pengeluaran</Text>
         </View>
         <TouchableOpacity style={styles.btnPdfHeader} onPress={downloadLaporan}>
           <Ionicons name="cloud-download-outline" size={18} color="#D32F2F" />
@@ -165,7 +165,7 @@ export default function TambahPengeluaran() {
       {/* METRIC HERO CARD TOTAL AKUMULASI (MODERN DARK STYLE) */}
       <View style={styles.summaryCard}>
         <View style={styles.summaryLeft}>
-          <Text style={styles.summaryLabel}>AKUMULASI PENGELUARAN</Text>
+          <Text style={styles.summaryLabel}>TOTAL PENGELUARAN</Text>
           <Text style={styles.summaryValue}>Rp {totalAkumulasi.toLocaleString('id-ID')}</Text>
         </View>
         <View style={styles.summaryRightBadge}>

@@ -117,20 +117,23 @@ export default function CustomerDashboard() {
     ]);
   };
 
-  const getStatusStyle = (status: string) => {
-    const statusClean = status ? status.toLowerCase() : 'antre';
-    switch (statusClean) {
-      case 'diambil':
-        return { bg: '#E8F5E9', text: '#2E7D32', dot: '#4CAF50' };
-      case 'selesai':
-        return { bg: '#E3F2FD', text: '#1565C0', dot: '#2196F3' };
-      case 'diproses':
-      case 'proses':
-        return { bg: '#FFF3E0', text: '#E65100', dot: '#FF9800' };
-      default:
-        return { bg: '#EDE7F6', text: '#4527A0', dot: '#673AB7' };
-    }
-  };
+const getStatusStyle = (status: string) => {
+  const statusClean = status ? status.toLowerCase() : 'antre';
+  
+  switch (statusClean) {
+    case 'diambil':
+      // Warna Hijau untuk cucian yang sudah sukses diambil
+      return { bg: '#E8F5E9', text: '#2E7D32', dot: '#4CAF50' };
+      
+    case 'antre':
+    case 'proses':
+    case 'diproses':
+    case 'selesai':
+    default:
+      // Warna Oren untuk status antre, diproses, selesai, dan default
+      return { bg: '#FFF3E0', text: '#E65100', dot: '#FF9800' };
+  }
+};
 
   return (
     <View style={styles.container}>

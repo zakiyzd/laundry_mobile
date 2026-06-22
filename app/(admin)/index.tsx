@@ -85,30 +85,34 @@ export default function AdminDashboard() {
     }, [])
   );
 
-  const handlePrintLabel = async (item: Order) => {
-    const htmlContent = `
-      <html>
-        <body style="display: flex; justify-content: center; align-items: center; font-family: 'Arial';">
-          <div style="width: 250px; border: 2px dashed #000; padding: 10px; border-radius: 10px;">
-            <h2 style="text-align: center; margin: 0; font-size: 18px;">LABEL CUCIAN</h2>
-            <hr/>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Nama:</strong> ${item.customer?.username || 'Tanpa Nama'}</p>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Alamat:</strong> ${item.customer?.alamat || '-'}</p>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Layanan:</strong> ${item.service?.nama_layanan || 'Layanan'}</p>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Detail:</strong> ${item.berat > 0 ? item.berat + ' Kg' : 'Satuan'}</p>
-            <hr/>
-            <p style="text-align: right; margin: 0; font-size: 16px; font-weight: bold;">Rp ${item.total_harga.toLocaleString()}</p>
-            <p style="text-align: center; font-size: 10px; margin-top: 10px;">Terima kasih!</p>
-          </div>
-        </body>
-      </html>
-    `;
-    try {
-      await Print.printAsync({ html: htmlContent });
-    } catch (error) {
-      Alert.alert("Error", "Gagal mencetak");
-    }
-  };
+const handlePrintLabel = async (item: Order) => {
+  const htmlContent = `
+    <html>
+      <body style="display: flex; justify-content: center; align-items: center; font-family: 'Arial';">
+        <div style="width: 250px; border: 2px dashed #000; padding: 10px; border-radius: 10px;">
+          <h2 style="text-align: center; margin: 0; font-size: 18px;">LABEL CUCIAN</h2>
+          <hr/>
+          <p style="margin: 5px 0; font-size: 14px;"><strong>Nama:</strong> ${item.customer?.username || 'Tanpa Nama'}</p>
+          <p style="margin: 5px 0; font-size: 14px;"><strong>Alamat:</strong> ${item.customer?.alamat || '-'}</p>
+          <p style="margin: 5px 0; font-size: 14px;"><strong>Layanan:</strong> ${item.service?.nama_layanan || 'Layanan'}</p>
+          
+          <p style="margin: 5px 0; font-size: 14px;">
+            <strong>Detail:</strong> ${item.berat > 0 ? item.berat + ' Kg' : `Satuan (${item.jenis_satuan || '-'})`}
+          </p>
+          
+          <hr/>
+          <p style="text-align: right; margin: 0; font-size: 16px; font-weight: bold;">Rp ${item.total_harga.toLocaleString('id-ID')}</p>
+          <p style="text-align: center; font-size: 10px; margin-top: 10px;">Terima kasih!</p>
+        </div>
+      </body>
+    </html>
+  `;
+  try {
+    await Print.printAsync({ html: htmlContent });
+  } catch (error) {
+    Alert.alert("Error", "Gagal mencetak");
+  }
+};
 
   const formatTanggal = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -257,7 +261,7 @@ export default function AdminDashboard() {
 
       {/* SEARCH BAR & TITLE */}
       <View style={styles.searchRow}>
-        <Text style={styles.sectionHeading}>Daftar Orderan</Text>
+        <Text style={styles.sectionHeading}>Daftar Cucian</Text>
         <View style={styles.searchBarContainer}>
           <Ionicons name="search" size={14} color="#A0A0A0" style={{ marginRight: 6 }} />
           <TextInput 
@@ -306,8 +310,14 @@ export default function AdminDashboard() {
                 </TouchableOpacity>
               </View>
 
-              {/* DETAILS METADATA */}
+          {/* DETAILS METADATA */}
               <View style={styles.metaDataContainer}>
+                {/* TAMBAHAN BARIS ID PESANAN DI ATAS NOMOR HP */}
+                <View style={styles.metaRow}>
+                  <Ionicons name="barcode-outline" size={13} color="#777" />
+                  <Text style={styles.metaText}>ID #{String(item.id).padStart(4, '0')}</Text>
+                </View>
+
                 <View style={styles.metaRow}>
                   <Ionicons name="call-outline" size={13} color="#777" />
                   <Text style={styles.metaText}>{item.customer?.nomor_hp || '-'}</Text>

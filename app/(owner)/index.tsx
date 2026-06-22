@@ -50,20 +50,36 @@ export default function DashboardOwner() {
     }, [])
   );
 
-  // AMBIL DATA RELASI BARU
+  // FUNGSI GAYA STATUS DINAMIS (HIJAU UNTUK DIAMBIL, OREN UNTUK SISANYA)
+  const getStatusStyle = (status: string) => {
+    const statusClean = status ? status.toLowerCase() : 'antre';
+    switch (statusClean) {
+      case 'diambil':
+        return { bg: '#E8F5E9', text: '#2E7D32', dot: '#4CAF50' };
+      case 'antre':
+      case 'proses':
+      case 'diproses':
+      case 'selesai':
+      default:
+        return { bg: '#FFF3E0', text: '#E65100', dot: '#FF9800' };
+    }
+  };
+
+  // AMBIL DATA RELASI BARU (SEMUA TRANSAKSI TANPA FILTER STATUS DI LINGKUP AKUN OWNER)
   const fetchDataSelesai = async () => {
     try {
       const response = await axios.get(`${API_URL}/orders`);
       const rawData = Array.isArray(response.data) ? response.data : response.data.data;
 
       if (rawData && Array.isArray(rawData)) {
-        const dataSelesai = rawData.filter((item: any) => item.status === 'diambil');
-        setOrders(dataSelesai);
+        // PERBAIKAN: Mengambil seluruh data cucian tanpa memfilternya ke status 'diambil' saja
+        const dataSemua = rawData; 
+        setOrders(dataSemua);
         
         if (searchQuery.trim() === '') {
-          setFilteredOrders(dataSelesai);
+          setFilteredOrders(dataSemua);
         } else {
-          const filtered = dataSelesai.filter((item: any) =>
+          const filtered = dataSemua.filter((item: any) =>
             item.customer?.username?.toLowerCase().includes(searchQuery.toLowerCase())
           );
           setFilteredOrders(filtered);
@@ -115,7 +131,7 @@ export default function DashboardOwner() {
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.headerSubtitle}>Selamat Datang,</Text>
-          <Text style={styles.headerTitle}>Panel Owner</Text>
+          <Text style={styles.headerTitle}>Owner Laundry</Text>
         </View>
         <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.avatarWrapper}>
           <Ionicons name="person" size={20} color="#673AB7" />
@@ -160,7 +176,7 @@ export default function DashboardOwner() {
         </TouchableOpacity>
       </Modal>
 
-      {/* FIX: LAYOUT TOMBOL LAPORAN SAMPINGAN KANAN KIRI CERAH DAN MODERN */}
+      {/* FIX: LAYOUT TOMBOL LAPORAN SAMPINGAN KANAN KIRI */}
       <View style={styles.menuRowSejajar}>
         <TouchableOpacity 
           style={[styles.btnMenuHalf, { backgroundColor: '#4CAF50' }]}
@@ -168,7 +184,7 @@ export default function DashboardOwner() {
         >
           <Ionicons name="receipt" size={18} color="white" style={{ marginBottom: 4 }} />
           <Text style={styles.cardLabel}>Cek</Text>
-          <Text style={styles.cardTitle}>Laporan Pemasukan</Text>
+          <Text style={styles.cardTitle}>Laporan Pendapatan</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -209,54 +225,70 @@ export default function DashboardOwner() {
           ListEmptyComponent={
             <Text style={styles.emptyText}>Tidak ada riwayat transaksi yang cocok.</Text>
           }
-          renderItem={({ item }) => (
-            <View style={styles.neoOrderCard}>
-              <View style={styles.cardMainHeader}>
-                <View>
-                  <Text style={styles.neoCustName}>{item.customer?.username || 'Pelanggan'}</Text>
-                  <Text style={styles.neoDateText}>📅 {item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</Text>
-                </View>
-                <View style={styles.capsuleBadge}>
-                  <View style={styles.dotIndicator} />
-                  <Text style={styles.capsuleBadgeText}>SUKSES DIAMBIL</Text>
-                </View>
-              </View>
+          renderItem={({ item }) => {
+            // Memanggil konfigurasi style warna dinamis berdasarkan status item
+            const currentStatusStyle = getStatusStyle(item.status);
 
-              {/* DETAILS METADATA BOX */}
-              <View style={styles.metaDataContainer}>
-                <View style={styles.metaRow}>
-                  <Ionicons name="cube-outline" size={13} color="#777" />
-                  <Text style={styles.metaText}>
-                    Kategori: {item.berat > 0 ? 'Kiloan' : 'Satuan'} {item.jenis_satuan ? `(${item.jenis_satuan})` : ''}
+            return (
+              <View style={styles.neoOrderCard}>
+                <View style={styles.cardMainHeader}>
+                  <View>
+                    <Text style={styles.neoCustName}>{item.customer?.username || 'Pelanggan'}</Text>
+                    <Text style={styles.neoDateText}>{item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</Text>
+                  </View>
+                  {/* PERBAIKAN: Pewarnaan dinamis diatur mengikuti status cucian */}
+                  <View style={[styles.capsuleBadge, { backgroundColor: currentStatusStyle.bg }]}>
+                    <View style={[styles.dotIndicator, { backgroundColor: currentStatusStyle.dot }]} />
+                    <Text style={[styles.capsuleBadgeText, { color: currentStatusStyle.text }]}>
+                      {item.status ? item.status.toUpperCase() : 'ANTRE'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* DETAILS METADATA BOX */}
+                <View style={styles.metaDataContainer}>
+                  {/* TAMBAHAN BARIS ID PESANAN DI ATAS KATEGORI */}
+                  <View style={styles.metaRow}>
+                    <Ionicons name="barcode-outline" size={13} color="#777" />
+                    <Text style={styles.metaText}>
+                      ID: #{String(item.id).padStart(4, '0')}
+                    </Text>
+                  </View>
+
+                  <View style={styles.metaRow}>
+                    <Ionicons name="cube-outline" size={13} color="#777" />
+                    <Text style={styles.metaText}>
+                      Kategori: {item.berat > 0 ? 'Kiloan' : 'Satuan'} {item.jenis_satuan ? `(${item.jenis_satuan})` : ''}
+                    </Text>
+                  </View>
+
+                  <View style={styles.metaRow}>
+                    <Ionicons name="scale-outline" size={13} color="#777" />
+                    <Text style={styles.metaText}>
+                      Detail: {item.berat > 0 ? `${parseFloat(item.berat).toFixed(2).replace(/\.?0+$/, "")} Kg` : 'Paket Per Item'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.metaRow}>
+                    <Ionicons name="location-outline" size={13} color="#777" />
+                    <Text style={styles.metaText} numberOfLines={1}>Alamat: {item.customer?.alamat || item.alamat || '-'}</Text>
+                  </View>
+                  
+                  <View style={styles.innerCardDivider} />
+                  
+                  <Text style={styles.textServiceTitle}>
+                    Layanan: <Text style={{ color: '#673AB7' }}>{item.service?.nama_layanan || 'Layanan'}</Text>
                   </Text>
                 </View>
 
-                <View style={styles.metaRow}>
-                  <Ionicons name="scale-outline" size={13} color="#777" />
-                  <Text style={styles.metaText}>
-                    Detail: {item.berat > 0 ? `${parseFloat(item.berat).toFixed(2).replace(/\.?0+$/, "")} Kg` : 'Paket Per Item'}
-                  </Text>
+                {/* FOOTER TOTAL BAYAR */}
+                <View style={styles.cardFooterArea}>
+                  <Text style={styles.priceMetaLabel}>TOTAL</Text>
+                  <Text style={styles.priceMetaValue}>Rp {Number(item.total_harga).toLocaleString('id-ID')}</Text>
                 </View>
-
-                <View style={styles.metaRow}>
-                  <Ionicons name="location-outline" size={13} color="#777" />
-                  <Text style={styles.metaText} numberOfLines={1}>Alamat: {item.customer?.alamat || item.alamat || '-'}</Text>
-                </View>
-                
-                <View style={styles.innerCardDivider} />
-                
-                <Text style={styles.textServiceTitle}>
-                  Layanan: <Text style={{ color: '#673AB7' }}>{item.service?.nama_layanan || 'Layanan'}</Text>
-                </Text>
               </View>
-
-              {/* FOOTER TOTAL BAYAR */}
-              <View style={styles.cardFooterArea}>
-                <Text style={styles.priceMetaLabel}>TOTAL BAYAR</Text>
-                <Text style={styles.priceMetaValue}>Rp {Number(item.total_harga).toLocaleString('id-ID')}</Text>
-              </View>
-            </View>
-          )}
+            );
+          }}
         />
       )}
     </View>
@@ -297,9 +329,9 @@ const styles = StyleSheet.create({
   neoDateText: { fontSize: 11, color: '#8E8E93', marginTop: 3, fontWeight: '500' },
   
   // CAPSULE BADGE PASTEL STYLE
-  capsuleBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, gap: 5 },
-  dotIndicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4CAF50' },
-  capsuleBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3, color: '#2E7D32' },
+  capsuleBadge: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, gap: 5 },
+  dotIndicator: { width: 6, height: 6, borderRadius: 3 },
+  capsuleBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3 },
   
   metaDataContainer: { marginVertical: 14, backgroundColor: '#F8F9FA', padding: 14, borderRadius: 16 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 5 },
