@@ -85,34 +85,81 @@ export default function AdminDashboard() {
     }, [])
   );
 
-const handlePrintLabel = async (item: Order) => {
-  const htmlContent = `
-    <html>
-      <body style="display: flex; justify-content: center; align-items: center; font-family: 'Arial';">
-        <div style="width: 250px; border: 2px dashed #000; padding: 10px; border-radius: 10px;">
-          <h2 style="text-align: center; margin: 0; font-size: 18px;">LABEL CUCIAN</h2>
-          <hr/>
-          <p style="margin: 5px 0; font-size: 14px;"><strong>Nama:</strong> ${item.customer?.username || 'Tanpa Nama'}</p>
-          <p style="margin: 5px 0; font-size: 14px;"><strong>Alamat:</strong> ${item.customer?.alamat || '-'}</p>
-          <p style="margin: 5px 0; font-size: 14px;"><strong>Layanan:</strong> ${item.service?.nama_layanan || 'Layanan'}</p>
-          
-          <p style="margin: 5px 0; font-size: 14px;">
-            <strong>Detail:</strong> ${item.berat > 0 ? item.berat + ' Kg' : `Satuan (${item.jenis_satuan || '-'})`}
-          </p>
-          
-          <hr/>
-          <p style="text-align: right; margin: 0; font-size: 16px; font-weight: bold;">Rp ${item.total_harga.toLocaleString('id-ID')}</p>
-          <p style="text-align: center; font-size: 10px; margin-top: 10px;">Terima kasih!</p>
-        </div>
-      </body>
-    </html>
-  `;
-  try {
-    await Print.printAsync({ html: htmlContent });
-  } catch (error) {
-    Alert.alert("Error", "Gagal mencetak");
-  }
-};
+  const handlePrintLabel = async (item: Order) => {
+    const htmlContent = `
+      <html>
+        <body style="display: flex; justify-content: center; align-items: center; font-family: 'Arial';">
+          <div style="width: 250px; border: 2px dashed #000; padding: 10px; border-radius: 10px;">
+            <h2 style="text-align: center; margin: 0; font-size: 18px;">LABEL CUCIAN</h2>
+            <hr/>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Nama:</strong> ${item.customer?.username || 'Tanpa Nama'}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Alamat:</strong> ${item.customer?.alamat || '-'}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Layanan:</strong> ${item.service?.nama_layanan || 'Layanan'}</p>
+            
+            <p style="margin: 5px 0; font-size: 14px;">
+              <strong>Detail:</strong> ${item.berat > 0 ? item.berat + ' Kg' : `Satuan (${item.jenis_satuan || '-'})`}
+            </p>
+            
+            <hr/>
+            <p style="text-align: right; margin: 0; font-size: 16px; font-weight: bold;">Rp ${item.total_harga.toLocaleString('id-ID')}</p>
+            <p style="text-align: center; font-size: 10px; margin-top: 10px;">Terima kasih!</p>
+          </div>
+        </body>
+      </html>
+    `;
+    try {
+      await Print.printAsync({ html: htmlContent });
+    } catch (error) {
+      Alert.alert("Error", "Gagal mencetak");
+    }
+  };
+
+  const handlePrintStruk = async (item: Order) => {
+    const htmlContent = `
+      <html>
+        <body style="font-family: 'Courier New', Courier, monospace; width: 280px; margin: 0 auto; padding: 10px; color: #000;">
+          <div style="text-align: center;">
+            <h2 style="margin: 0; font-size: 16px; font-weight: bold;">MM LAUNDRY</h2>
+            <p style="margin: 2px 0; font-size: 11px;">Solusi Bersih & Cepat</p>
+            <p style="margin: 2px 0; font-size: 11px;">Pakiringan, Bantarkawung</p>
+            <p style="margin: 5px 0;">===============================</p>
+          </div>
+          <div style="font-size: 11px; line-height: 1.4;">
+            <p style="margin: 2px 0;"><strong>No. Nota :</strong> #${String(item.id).padStart(4, '0')}</p>
+            <p style="margin: 2px 0;"><strong>Tanggal  :</strong> ${formatTanggal(item.created_at)}</p>
+            <p style="margin: 2px 0;"><strong>Pelanggan:</strong> ${item.customer?.username || 'Tanpa Nama'}</p>
+            <p style="margin: 2px 0;"><strong>No. HP   :</strong> ${item.customer?.nomor_hp || '-'}</p>
+            <p style="margin: 5px 0;">-------------------------------</p>
+            <p style="margin: 2px 0; font-weight: bold;">Layanan:</p>
+            <p style="margin: 2px 0; padding-left: 5px;">
+              ${item.berat > 0 ? 'Kiloan' : 'Satuan'} - ${item.service?.nama_layanan || 'Layanan'}
+            </p>
+            <p style="margin: 2px 0; padding-left: 5px;">
+              ${item.berat > 0 ? `Berat: ${item.berat} Kg` : `Item: ${item.jenis_satuan || '-'}`}
+            </p>
+            <p style="margin: 5px 0;">-------------------------------</p>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-top: 5px;">
+              <span>TOTAL BAYAR:</span>
+              <span>Rp ${item.total_harga.toLocaleString('id-ID')}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px; margin-top: 2px;">
+              <span>STATUS     :</span>
+              <span>${item.status.toUpperCase()} (LUNAS)</span>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 15px; font-size: 11px;">
+            <p style="margin: 2px 0;">=== TERIMA KASIH ===</p>
+            <p style="margin: 2px 0;">Cucian Bersih, Hati Tenang</p>
+          </div>
+        </body>
+      </html>
+    `;
+    try {
+      await Print.printAsync({ html: htmlContent });
+    } catch (error) {
+      Alert.alert("Error", "Gagal mencetak struk belanja");
+    }
+  };
 
   const formatTanggal = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -156,13 +203,26 @@ const handlePrintLabel = async (item: Order) => {
       Alert.alert("Info", "Cucian sudah diambil.");
       return;
     }
-    try {
-      await axios.put(`${API_URL}/orders/${id}/status`, { status: nextStatus });
-      Alert.alert("Berhasil", `Status: ${nextStatus}`);
-      fetchData();
-    } catch (error) {
-      Alert.alert("Gagal", "Kesalahan koneksi");
-    }
+
+    Alert.alert(
+      "Konfirmasi Perubahan", 
+      `Apakah Anda yakin ingin merubah status cucian ini menjadi "${nextStatus.toUpperCase()}"?`,
+      [
+        { text: "Tidak", style: "cancel" },
+        { 
+          text: "Iya", 
+          onPress: async () => {
+            try {
+              await axios.put(`${API_URL}/orders/${id}/status`, { status: nextStatus });
+              Alert.alert("Berhasil", `Status berhasil diperbarui menjadi: ${nextStatus.toUpperCase()}`);
+              fetchData();
+            } catch (error) {
+              Alert.alert("Gagal", "Kesalahan koneksi internet / server");
+            }
+          } 
+        }
+      ]
+    );
   };
 
   const handleDelete = (id: number) => {
@@ -227,11 +287,9 @@ const handlePrintLabel = async (item: Order) => {
         <View style={styles.heroLeftSection}>
           <Text style={styles.heroCardLabel}>TOTAL ANTRIAN</Text>
           <Text style={styles.heroCardNumber}>{total}</Text>
-          {/* <Text style={styles.heroCardSub}>Nota Menunggu</Text> */}
         </View>
         
         <View style={styles.heroRightSection}>
-          {/* Tombol Pendapatan: Hijau Cerah Solid (Contoh Laporan Pendapatan) */}
           <TouchableOpacity 
             style={[styles.glassButton, { backgroundColor: '#4CAF50', borderColor: '#4CAF50' }]} 
             onPress={() => router.push('/(admin)/laporan')}
@@ -240,7 +298,6 @@ const handlePrintLabel = async (item: Order) => {
             <Text style={styles.glassButtonText}>Pendapatan</Text>
           </TouchableOpacity>
           
-          {/* Tombol Pengeluaran: Merah Cerah Solid (Contoh Laporan Pengeluaran) */}
           <TouchableOpacity 
             style={[styles.glassButton, { backgroundColor: '#D32F2F', borderColor: '#D32F2F' }]} 
             onPress={() => router.push('/(admin)/tambah_pengeluaran')}
@@ -312,7 +369,6 @@ const handlePrintLabel = async (item: Order) => {
 
           {/* DETAILS METADATA */}
               <View style={styles.metaDataContainer}>
-                {/* TAMBAHAN BARIS ID PESANAN DI ATAS NOMOR HP */}
                 <View style={styles.metaRow}>
                   <Ionicons name="barcode-outline" size={13} color="#777" />
                   <Text style={styles.metaText}>ID #{String(item.id).padStart(4, '0')}</Text>
@@ -345,6 +401,16 @@ const handlePrintLabel = async (item: Order) => {
                 </View>
                 
                 <View style={styles.neoActionGroup}>
+                  {/* TOMBOL DINAMIS: Hanya muncul jika status SELESAI atau DIAMBIL */}
+                  {(item.status.toLowerCase() === 'selesai' || item.status.toLowerCase() === 'diambil') && (
+                    <TouchableOpacity 
+                      onPress={() => handlePrintStruk(item)} 
+                      style={[styles.neoIconBtn, { backgroundColor: '#E8F5E9' }]}
+                    >
+                      <Ionicons name="receipt" size={15} color="#2E7D32" />
+                    </TouchableOpacity>
+                  )}
+
                   <TouchableOpacity onPress={() => handlePrintLabel(item)} style={styles.neoIconBtn}>
                     <Ionicons name="print" size={15} color="#555" />
                   </TouchableOpacity>

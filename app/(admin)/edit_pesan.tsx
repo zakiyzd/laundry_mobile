@@ -69,7 +69,7 @@ export default function EditPesan() {
         total_harga: parseInt(totalHarga)
       });
 
-      Alert.alert("Berhasil", "Pesanan telah diperbarui!");
+      Alert.alert("Berhasil", "Data Pesanan Berhasil Diperbarui!");
       router.replace('/(admin)'); // Balik ke dashboard admin
     } catch (error: any) {
       console.error(error);
