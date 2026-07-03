@@ -121,14 +121,14 @@ export default function AdminDashboard() {
           <div style="text-align: center;">
             <h2 style="margin: 0; font-size: 16px; font-weight: bold;">MM LAUNDRY</h2>
             <p style="margin: 2px 0; font-size: 11px;">Solusi Bersih & Cepat</p>
-            <p style="margin: 2px 0; font-size: 11px;">Pakiringan, Bantarkawung</p>
+            <p style="margin: 2px 0; font-size: 11px;">Jln. Raya Bantarkawung (Pertigaan Ciomas-Pakiringan)</p>
             <p style="margin: 5px 0;">===============================</p>
           </div>
           <div style="font-size: 11px; line-height: 1.4;">
             <p style="margin: 2px 0;"><strong>No. Nota :</strong> #${String(item.id).padStart(4, '0')}</p>
             <p style="margin: 2px 0;"><strong>Tanggal  :</strong> ${formatTanggal(item.created_at)}</p>
             <p style="margin: 2px 0;"><strong>Pelanggan:</strong> ${item.customer?.username || 'Tanpa Nama'}</p>
-            <p style="margin: 2px 0;"><strong>No. HP   :</strong> ${item.customer?.nomor_hp || '-'}</p>
+            <p style="margin: 2px 0;"><strong>No. HP    :</strong> ${item.customer?.nomor_hp || '-'}</p>
             <p style="margin: 5px 0;">-------------------------------</p>
             <p style="margin: 2px 0; font-weight: bold;">Layanan:</p>
             <p style="margin: 2px 0; padding-left: 5px;">
@@ -393,38 +393,61 @@ export default function AdminDashboard() {
                 </Text>
               </View>
 
-              {/* CARD BOTTOM PRICE AND ACTIONS */}
+              {/* CARD BOTTOM PRICE (DIUBAH MENJADI HORIZONTAL KIRI-KANAN SEJAJAR) */}
               <View style={styles.cardFooterArea}>
-                <View>
-                  <Text style={styles.priceMetaLabel}>TOTAL</Text>
-                  <Text style={styles.priceMetaValue}>Rp {item.total_harga.toLocaleString('id-ID')}</Text>
-                </View>
-                
-                <View style={styles.neoActionGroup}>
-                  {/* TOMBOL DINAMIS: Hanya muncul jika status SELESAI atau DIAMBIL */}
-                  {(item.status.toLowerCase() === 'selesai' || item.status.toLowerCase() === 'diambil') && (
-                    <TouchableOpacity 
-                      onPress={() => handlePrintStruk(item)} 
-                      style={[styles.neoIconBtn, { backgroundColor: '#E8F5E9' }]}
-                    >
-                      <Ionicons name="receipt" size={15} color="#2E7D32" />
-                    </TouchableOpacity>
-                  )}
-
-                  <TouchableOpacity onPress={() => handlePrintLabel(item)} style={styles.neoIconBtn}>
-                    <Ionicons name="print" size={15} color="#555" />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    onPress={() => router.push({ pathname: '/(admin)/edit_pesan', params: { id: item.id } })} 
-                    style={[styles.neoIconBtn, { backgroundColor: '#E3F2FD' }]}
-                  >
-                    <Ionicons name="create" size={15} color="#1E88E5" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(item.id)} style={[styles.neoIconBtn, { backgroundColor: '#FFEBEE' }]}>
-                    <Ionicons name="trash" size={15} color="#E53935" />
-                  </TouchableOpacity>
-                </View>
+                <Text style={styles.priceMetaLabel}>TOTAL</Text>
+                <Text style={styles.priceMetaValue}>Rp {item.total_harga.toLocaleString('id-ID')}</Text>
               </View>
+
+              {/* LINE SEPARATOR FOR ACTION BUTTONS */}
+              <View style={styles.actionSeparator} />
+
+              {/* ACTION GROUP: 5 ROW BUTTONS SIDE-BY-SIDE (DIPERBESAR & ROUNDED KOTAK TUMPUL) */}
+              <View style={styles.neoActionRow}>
+                {/* 1. UPDATE STATUS */}
+                <TouchableOpacity style={styles.actionButton} onPress={() => handleUpdateStatus(item.id, item.status)}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#EFEBE9' }]}>
+                    <Ionicons name="sync" size={16} color="#5D4037" />
+                  </View>
+                  <Text style={styles.actionText}>Update{"\n"}Cucian</Text>
+                </TouchableOpacity>
+
+                {/* 2. CETAK STRUK */}
+                <TouchableOpacity style={styles.actionButton} onPress={() => handlePrintStruk(item)}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#E8F5E9' }]}>
+                    <Ionicons name="receipt" size={16} color="#2E7D32" />
+                  </View>
+                  <Text style={styles.actionText}>Cetak{"\n"}Struk</Text>
+                </TouchableOpacity>
+
+                {/* 3. CETAK LABEL */}
+                <TouchableOpacity style={styles.actionButton} onPress={() => handlePrintLabel(item)}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#F5F5F5' }]}>
+                    <Ionicons name="print" size={16} color="#555" />
+                  </View>
+                  <Text style={styles.actionText}>Cetak{"\n"}Label</Text>
+                </TouchableOpacity>
+
+                {/* 4. EDIT DATA */}
+                <TouchableOpacity 
+                  style={styles.actionButton} 
+                  onPress={() => router.push({ pathname: '/(admin)/edit_pesan', params: { id: item.id } })}
+                >
+                  <View style={[styles.iconCircle, { backgroundColor: '#E3F2FD' }]}>
+                    <Ionicons name="create" size={16} color="#1E88E5" />
+                  </View>
+                  <Text style={styles.actionText}>Edit{"\n"}Data</Text>
+                </TouchableOpacity>
+
+                {/* 5. HAPUS PESANAN */}
+                <TouchableOpacity style={styles.actionButton} onPress={() => handleDelete(item.id)}>
+                  <View style={[styles.iconCircle, { backgroundColor: '#FFEBEE' }]}>
+                    <Ionicons name="trash" size={16} color="#E53935" />
+                  </View>
+                  <Text style={styles.actionText}>Hapus{"\n"}Pesanan</Text>
+                </TouchableOpacity>
+              </View>
+
             </View>
           )}
         />
@@ -481,9 +504,29 @@ const styles = StyleSheet.create({
   textServiceTitle: { fontSize: 13, fontWeight: '800', color: '#1C1C1E' },
   textServiceDetail: { fontSize: 12, color: '#666', marginTop: 2, fontWeight: '500' },
   
-  cardFooterArea: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  priceMetaLabel: { fontSize: 9, color: '#8E8E93', fontWeight: '700', letterSpacing: 0.5 },
-  priceMetaValue: { fontSize: 18, fontWeight: '900', color: '#673AB7', marginTop: 1 },
-  neoActionGroup: { flexDirection: 'row', gap: 6 },
-  neoIconBtn: { padding: 9, backgroundColor: '#F2F2F7', borderRadius: 12, justifyContent: 'center', alignItems: 'center', minWidth: 36 }
+  // MODIFIKASI LATEOUT HARGA: MENJADI SEJAJAR KIRI (LABEL) DAN KANAN (VALUE)
+  cardFooterArea: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginTop: 4,
+    paddingHorizontal: 2
+  },
+  priceMetaLabel: { fontSize: 12, color: '#1C1C1E', fontWeight: '800', letterSpacing: 0.5 },
+  priceMetaValue: { fontSize: 18, fontWeight: '900', color: '#673AB7' },
+
+  actionSeparator: { height: 1, backgroundColor: '#F2F2F7', marginTop: 14, marginBottom: 12 },
+  neoActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  actionButton: { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 },
+  
+  // MODIFIKASI ICON: BOX UKURAN DIPERBESAR (38) DAN BENTUK ROUNDED KOTAK TUMPUL (8)
+  iconCircle: { 
+    width: 38, 
+    height: 38, 
+    borderRadius: 8, // Mengubah dari bulat lingkaran penuh menjadi kotak tumpul/rounded
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginBottom: 5 
+  },
+  actionText: { fontSize: 10, fontWeight: '700', color: '#555', textAlign: 'center' }
 });
