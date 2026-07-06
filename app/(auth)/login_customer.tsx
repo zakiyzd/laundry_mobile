@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { API_URL } from '../config'; 
+import { API_URL } from '../config'; // 👈 1. PERBAIKAN JALUR FILE (Keluar 2 tingkat)
+import AsyncStorage from '@react-native-async-storage/async-storage'; // 👈 2. IMPORT ASYNCSTORAGE
 
 export default function LoginCustomer() {
   const [hp, setHp] = useState('');
@@ -17,15 +18,19 @@ export default function LoginCustomer() {
 
     setLoading(true);
     try {
-      // PERBAIKAN 1: Mengubah endpoint target ke '/orders/check-status' sesuai routes/api.php baru
+      // Mengubah endpoint target ke '/orders/check-status' sesuai routes/api.php baru
       const response = await axios.post(`${API_URL}/orders/check-status`, {
         nomor_hp: hp
       });
 
-      // PERBAIKAN 2: Menyesuaikan pembacaan data nested JSON dari Laravel baru
       // Laravel mengembalikan: { success: true, customer: { username: '...', nomor_hp: '...' }, order: {...} }
       if (response.data.success) {
         const customerData = response.data.customer;
+
+        // 👈 3. SIMPAN STATUS ROLE & DATA PELANGGAN KE MEMORI HP
+        await AsyncStorage.setItem('userRole', 'customer');
+        await AsyncStorage.setItem('customerHp', customerData.nomor_hp);
+        await AsyncStorage.setItem('customerUsername', customerData.username);
 
         router.replace({
           pathname: '/(customer)',

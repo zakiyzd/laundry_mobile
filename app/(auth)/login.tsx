@@ -2,16 +2,14 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { API_URL } from '../config'; 
-// Import Ionicons untuk icon mata
+import { API_URL } from '../config'; // 👈 Disesuaikan jalurnya karena ada di dalam (auth)
+import AsyncStorage from '@react-native-async-storage/async-storage'; // 👈 1. IMPORT ASYNCSTORAGE
 import { Ionicons } from '@expo/vector-icons'; 
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // State untuk kontrol mata password
   const [showPassword, setShowPassword] = useState(false);
   
   const router = useRouter();
@@ -31,6 +29,9 @@ export default function LoginScreen() {
 
       const { user } = response.data;
 
+      // 👈 2. SIMPAN STATUS ROLE USER KE MEMORI HP
+      await AsyncStorage.setItem('userRole', user.role);
+
       // Logika Navigasi berdasarkan Role
       if (user.role === 'admin') {
         Alert.alert('Berhasil', `Halo ${user.name}, selamat bekerja!`);
@@ -45,7 +46,7 @@ export default function LoginScreen() {
         router.replace('/(customer)');
       }
 
-    } catch (error: any) {
+   } catch (error: any) {
       const msg = error.response?.data?.message || 'Koneksi gagal. Cek Laravel & Wi-Fi!';
       Alert.alert('Login Gagal', msg);
     } finally {
@@ -66,7 +67,6 @@ export default function LoginScreen() {
         keyboardType="email-address"
       />
       
-      {/* Container Input Password dengan Icon Mata */}
       <View style={styles.passwordContainer}>
         <TextInput 
           style={styles.inputPassword} 
@@ -98,15 +98,6 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>MASUK</Text>
         )}
       </TouchableOpacity>
-
-      {/* <TouchableOpacity 
-        onPress={() => router.push('/(auth)/register' as any)} 
-        style={{ marginTop: 25 }}
-      >
-        <Text style={{ color: '#673AB7', textAlign: 'center', fontWeight: '500' }}>
-            Tambah akun? Klik di Sini
-        </Text>
-      </TouchableOpacity> */}
     </View>
   );
 }
@@ -115,8 +106,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 30, backgroundColor: '#fff' },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center', color: '#673AB7' },
   input: { borderWidth: 1, borderColor: '#ddd', padding: 15, borderRadius: 10, marginBottom: 15 },
-  
-  // Style untuk pembungkus password agar icon mata sejajar
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -132,7 +121,6 @@ const styles = StyleSheet.create({
   eyeIcon: {
     paddingHorizontal: 15,
   },
-
   button: { backgroundColor: '#673AB7', padding: 18, borderRadius: 10, alignItems: 'center' },
   buttonText: { color: 'white', fontWeight: 'bold' }
 });
