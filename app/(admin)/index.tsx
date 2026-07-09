@@ -17,6 +17,7 @@ import axios from 'axios';
 import { API_URL } from '../config'; 
 import * as Print from 'expo-print';
 import { Ionicons } from '@expo/vector-icons'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Customer = {
   id: number;

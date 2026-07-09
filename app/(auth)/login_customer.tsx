@@ -1,14 +1,27 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react'; // 🔥 Tambahkan useEffect untuk back handler fisik
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, BackHandler } from 'react-native'; // 🔥 Tambahkan BackHandler
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { API_URL } from '../config'; // 👈 1. PERBAIKAN JALUR FILE (Keluar 2 tingkat)
-import AsyncStorage from '@react-native-async-storage/async-storage'; // 👈 2. IMPORT ASYNCSTORAGE
+import { API_URL } from '../config'; 
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import { registerForPushNotificationsAsync } from '../utils/registerForPushNotifications';
+import { Ionicons } from '@expo/vector-icons'; // 🔥 Tambahkan import ikon bawaan Expo
 
 export default function LoginCustomer() {
   const [hp, setHp] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // 🔥 --- LOGIKA TOMBOL BACK FISIK ANDROID ---
+  useEffect(() => {
+    const onBackPress = () => {
+      router.replace('/'); // Paksa mundur ke halaman opsi login
+      return true; // Menandakan kita handle sendiri aksinya
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, []);
 
   const handleLogin = async () => {
     if (!hp) {
@@ -18,16 +31,17 @@ export default function LoginCustomer() {
 
     setLoading(true);
     try {
-      // Mengubah endpoint target ke '/orders/check-status' sesuai routes/api.php baru
+      const pushToken = await registerForPushNotificationsAsync();
+      console.log("Token yang akan dikirim:", pushToken); 
+
       const response = await axios.post(`${API_URL}/orders/check-status`, {
-        nomor_hp: hp
+        nomor_hp: hp,
+        expo_push_token: pushToken 
       });
 
-      // Laravel mengembalikan: { success: true, customer: { username: '...', nomor_hp: '...' }, order: {...} }
       if (response.data.success) {
         const customerData = response.data.customer;
 
-        // 👈 3. SIMPAN STATUS ROLE & DATA PELANGGAN KE MEMORI HP
         await AsyncStorage.setItem('userRole', 'customer');
         await AsyncStorage.setItem('customerHp', customerData.nomor_hp);
         await AsyncStorage.setItem('customerUsername', customerData.username);
@@ -42,7 +56,6 @@ export default function LoginCustomer() {
       }
       
     } catch (error: any) {
-      // Menangkap pesan error 404 dari Laravel jika nomor HP belum terdaftar di tabel customers
       const msg = error.response?.data?.message || "Nomor HP tidak terdaftar atau koneksi terputus.";
       Alert.alert("Gagal Login", msg);
     } finally {
@@ -52,6 +65,16 @@ export default function LoginCustomer() {
 
   return (
     <View style={styles.container}>
+      
+      {/* 🔥 TOMBOL BACK VISUAL DI LAYAR */}
+      <TouchableOpacity 
+        style={styles.backButton} 
+        onPress={() => router.replace('/')}
+      >
+        <Ionicons name="arrow-back" size={24} color="#673AB7" />
+        <Text style={styles.backText}>Kembali</Text>
+      </TouchableOpacity>
+
       <Text style={styles.emoji}>🧺</Text>
       <Text style={styles.title}>Login Pelanggan</Text>
       
@@ -76,6 +99,23 @@ export default function LoginCustomer() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 30, justifyContent: 'center', backgroundColor: '#fff' },
+  
+  // 🔥 STYLE BARU UNTUK TOMBOL BACK agar posisinya pas di kiri atas layar
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'absolute',
+    top: 50, 
+    left: 25,
+    zIndex: 10,
+  },
+  backText: {
+    fontSize: 16,
+    marginLeft: 5,
+    color: '#673AB7',
+    fontWeight: 'bold'
+  },
+
   emoji: { fontSize: 60, textAlign: 'center', marginBottom: 10 },
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', color: '#673AB7', marginBottom: 30 },
   input: { borderWidth: 1, borderColor: '#ddd', padding: 15, borderRadius: 12, marginBottom: 20 },
