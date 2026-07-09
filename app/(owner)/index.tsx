@@ -17,6 +17,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../config';
 import { Ionicons } from '@expo/vector-icons'; 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function DashboardOwner() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function DashboardOwner() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const lastBackButtonPress = useRef(0);
 
@@ -67,6 +69,7 @@ export default function DashboardOwner() {
 
   // AMBIL DATA RELASI BARU (SEMUA TRANSAKSI TANPA FILTER STATUS DI LINGKUP AKUN OWNER)
   const fetchDataSelesai = async () => {
+    if (isLoggingOut) return; // 🔥 1. SELIPKAN INI DI BARIS PERTAMA
     try {
       const response = await axios.get(`${API_URL}/orders`);
       const rawData = Array.isArray(response.data) ? response.data : response.data.data;
@@ -118,11 +121,36 @@ export default function DashboardOwner() {
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert("Logout", "Apakah anda yakin ingin keluar?", [
-      { text: "Batal", style: "cancel" },
-      { text: "Keluar", style: "destructive", onPress: () => router.replace('/(auth)/login') }
-    ]);
+ const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Apakah anda yakin ingin keluar?",
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Keluar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // 1. Set saklar logout jadi true (jika di owner kamu pakai fetchData juga)
+              if (typeof setIsLoggingOut === "function") {
+                setIsLoggingOut(true);
+              }
+
+              // 2. Sapu bersih memori penyimpanan di HP
+              await AsyncStorage.clear();
+
+              // 3. Tembak langsung ke halaman login biar fix anti-mental
+              router.replace("/(auth)/login");
+
+            } catch (error) {
+              console.error("Gagal logout owner:", error);
+              router.replace("/(auth)/login");
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (

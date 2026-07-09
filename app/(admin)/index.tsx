@@ -60,6 +60,8 @@ export default function AdminDashboard() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
 
   const router = useRouter();
   const navigation = useNavigation();
@@ -168,6 +170,7 @@ export default function AdminDashboard() {
   };
 
   const fetchData = async () => {
+    if (isLoggingOut) return; // 🔥 1. SELIPKAN INI DI BARIS PERTAMA
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/orders`);
@@ -241,11 +244,34 @@ export default function AdminDashboard() {
     ]);
   };
 
-  const handleLogout = () => {
-    Alert.alert("Logout", "Yakin ingin keluar?", [
-      { text: "Batal", style: "cancel" },
-      { text: "Keluar", style: "destructive", onPress: () => router.replace('/(auth)/login') }
-    ]);
+ const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Apakah anda yakin ingin keluar?",
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Keluar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // 1. Set saklar logout jadi true
+              setIsLoggingOut(true);
+
+              // 2. Bersihkan paksa memori HP
+              await AsyncStorage.clear();
+
+              // 3. 🔥 UBAH RUTENYA: Jangan ke "/", tapi langsung tembak ke form login admin
+              router.replace("/(auth)/login");
+
+            } catch (error) {
+              console.error("Gagal logout:", error);
+              router.replace("/(auth)/login");
+            }
+          },
+        },
+      ],
+    );
   };
 
   useEffect(() => {
