@@ -275,6 +275,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    fetchData();
     const unsubscribe = navigation.addListener('focus', fetchData);
     return unsubscribe;
   }, [navigation]);
