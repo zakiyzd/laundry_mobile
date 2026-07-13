@@ -211,7 +211,7 @@ export default function TambahPengeluaran() {
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.itemName}>{item.nama_barang}</Text>
               <Text style={styles.itemDate}>
-                📅 {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
               </Text>
             </View>
             

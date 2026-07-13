@@ -107,9 +107,7 @@ export default function RegisterScreen() {
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>DAFTAR SEKARANG</Text>}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-        <Text style={styles.backLink}>Sudah punya akun? Login di sini</Text>
-      </TouchableOpacity>
+      
     </ScrollView>
   );
 }

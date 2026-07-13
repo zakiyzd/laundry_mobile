@@ -304,7 +304,7 @@ export default function AdminDashboard() {
             <View style={styles.menuDivider} />
             <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); handleLogout(); }}>
               <Ionicons name="log-out-outline" size={18} color="#D32F2F" />
-              <Text style={[styles.menuItemText, { color: '#D32F2F' }]}>Logout</Text>
+              <Text style={[styles.menuItemText, { color: '#D32F2F' }]}>Keluar</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

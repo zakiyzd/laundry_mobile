@@ -141,7 +141,7 @@ export default function LaporanPendapatan() {
                   {item.jenis_satuan ? ` (${item.jenis_satuan})` : ''}
                 </Text>
                 <Text style={styles.itemDate}>
-                  📅 {item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                   {item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
                 </Text>
               </View>
               

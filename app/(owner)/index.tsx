@@ -183,22 +183,11 @@ export default function DashboardOwner() {
               style={styles.menuItem} 
               onPress={() => {
                 setMenuVisible(false);
-                router.push('/(auth)/register');
-              }}
-            >
-              <Ionicons name="person-add-outline" size={18} color="#333" />
-              <Text style={styles.menuItemText}>Tambah Akun Baru</Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              onPress={() => {
-                setMenuVisible(false);
                 handleLogout();
               }}
             >
               <Ionicons name="log-out-outline" size={18} color="#D32F2F" />
-              <Text style={[styles.menuItemText, { color: '#D32F2F' }]}>Keluar / Logout</Text>
+              <Text style={[styles.menuItemText, { color: '#D32F2F' }]}>Keluar</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

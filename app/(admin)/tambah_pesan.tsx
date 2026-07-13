@@ -36,12 +36,12 @@ export default function TambahPesananV2() {
     if (kategori === 'Kiloan' && berat) {
       let hargaBase = 0;
       
-      if (idServices === 1) hargaBase = 6000;       
-      else if (idServices === 2) hargaBase = 4000;  
-      else if (idServices === 3) hargaBase = 4000;  
-      else if (idServices === 5) hargaBase = 12000; 
-      else if (idServices === 6) hargaBase = 8000;  
-      else if (idServices === 7) hargaBase = 8000;  
+      if (idServices === 1) hargaBase = 7000;       
+      else if (idServices === 2) hargaBase = 5000;  
+      else if (idServices === 3) hargaBase = 5000;  
+      else if (idServices === 5) hargaBase = 14000; 
+      else if (idServices === 6) hargaBase = 10000;  
+      else if (idServices === 7) hargaBase = 10000;  
 
       setTotalTagihan(parseFloat(berat) * hargaBase);
     }

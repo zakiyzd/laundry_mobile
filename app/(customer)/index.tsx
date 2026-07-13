@@ -47,7 +47,7 @@ export default function CustomerDashboard() {
   const params = useLocalSearchParams(); // Jangan langsung di-destructure di sini agar tidak error
   const router = useRouter();
 
-  // 🔥 2. Buat state dinamis untuk menampung data profil customer
+  //  2. Buat state dinamis untuk menampung data profil customer
   const [displayUsername, setDisplayUsername] = useState("");
   const [displayNomorHp, setDisplayNomorHp] = useState("");
 
@@ -286,18 +286,25 @@ export default function CustomerDashboard() {
                   <View style={styles.metaRow}>
                     <Ionicons name="scale-outline" size={13} color="#777" />
                     <Text style={styles.metaText}>
-                      {/* FIX: Jika berat > 0 tampilkan Kg, jika satuan tampilkan teks jenis_satuan dari DB */}
-                      Spesifikasi:{" "}
+                      {/* Label dinamis: Jika berat > 0 tampilkan 'Berat:', jika tidak tampilkan 'Item:' */}
+                      {item.berat > 0 ? "Berat: " : "Item: "}
+
+                      {/* Nilai dinamis */}
                       {item.berat > 0
                         ? `${item.berat} Kg`
-                        : `Satuan (${item.jenis_satuan || "-"})`}
+                        : `${item.jenis_satuan || "-"}`}
                     </Text>
                   </View>
 
                   <View style={styles.metaRow}>
-                    <Ionicons name="location-outline" size={13} color="#777" />
+                    <Ionicons name="calendar-outline" size={13} color="#777" />
                     <Text style={styles.metaText} numberOfLines={1}>
-                      Alamat: {item.customer?.alamat || "-"}
+                      {item.created_at
+                        ? new Date(item.created_at).toLocaleDateString(
+                            "id-ID",
+                            { day: "numeric", month: "long", year: "numeric" },
+                          )
+                        : "-"}
                     </Text>
                   </View>
                 </View>
