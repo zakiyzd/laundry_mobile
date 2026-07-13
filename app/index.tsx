@@ -1,10 +1,39 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+// 1. IMPORT ASYNCSTORAGE UNTUK CEK STATE SAKELAR VISUAL 👇
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LandingPage() {
   const router = useRouter();
+  // 2. STATE UNTUK MENAHAN TAMPILAN VISUAL AGAR TIDAK KEDIP 👇
+  const [isChecking, setIsChecking] = useState(true);
+  const [hasToken, setHasToken] = useState(false);
 
+  useEffect(() => {
+    async function checkLocalSession() {
+      try {
+        const role = await AsyncStorage.getItem("userRole");
+        if (role) {
+          // Jika di memori HP ada session, tandai agar UI polosan ini disembunyikan
+          setHasToken(true);
+        }
+      } catch (e) {
+        console.error("Gagal cek storage di landing page:", e);
+      } finally {
+        setIsChecking(false);
+      }
+    }
+    checkLocalSession();
+  }, []);
+
+  // 3. KUNCINYA DI SINI: Jika masih proses ngecek atau emang user sudah login, 
+  // kembalikan null (layar bersih) supaya tombol-tombol tidak sempat mengintip/berkedip
+  if (isChecking || hasToken) {
+    return null;
+  }
+
+  // 4. UI ASLI KAMU HANYA AKAN MUNCUL JIKA USER BENAR-BENAR BELUM LOGIN
   return (
     <View style={styles.container}>
       <Text style={styles.emoji}>🧺</Text>
