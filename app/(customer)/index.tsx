@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { registerForPushNotificationsAsync } from '../utils/registerForPushNotifications';
 import {
   ActivityIndicator,
   Alert,

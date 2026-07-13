@@ -4,7 +4,7 @@
     "slug": "laundry_mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-laundry.png",
     "scheme": "laundrymobile",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -12,20 +12,19 @@
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
+      "package": "com.zakiyzd.laundry_mobile",
+      "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.zakiyzd.laundry_mobile",
       "usesCleartextTraffic": true,
+      "adaptiveIcon": {
+        "backgroundColor": "#D2E9FF",
+        "foregroundImage": "./assets/images/android-icon-foreground-laundry2.png"
+      },
       "splash": {
-        "image": "./assets/images/splash-icon.png",
+        "image": "./assets/images/splash-laundry1.png",
         "resizeMode": "contain",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#D2E9FF"
       }
     },
     "web": {
@@ -37,12 +36,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-laundry1.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#D2E9FF"
         }
       ],
       "expo-secure-store"
