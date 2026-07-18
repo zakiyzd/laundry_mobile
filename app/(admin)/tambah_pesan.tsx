@@ -13,6 +13,14 @@ type Customer = {
   alamat: string;
 };
 
+// 1. Tipe data untuk menampung Master Layanan dari database
+type ServiceItem = {
+  id: number;
+  nama_layanan?: string;
+  nama?: string;
+  harga: number;
+};
+
 export default function TambahPesananV2() {
   const router = useRouter();
   const [nama, setNama] = useState('');
@@ -28,24 +36,51 @@ export default function TambahPesananV2() {
   const [suggestions, setSuggestions] = useState<Customer[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  // STATE BARU: Untuk menyimpan master data tarif layanan dari database VPS
+  const [servicesList, setServicesList] = useState<ServiceItem[]>([]);
+
   // STATE BARU: Untuk Manajemen Status Validasi WhatsApp Gateway
   const [isNumberValid, setIsNumberValid] = useState<boolean | null>(null);
   const [checkingNumber, setCheckingNumber] = useState(false);
 
+  // 2. FUNGSI BARU: Mengambil data tarif ter-update dari VPS saat halaman dibuka
+  const fetchServicesData = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/services`);
+      if (response.data.success) {
+        setServicesList(response.data.data);
+      }
+    } catch (error) {
+      console.error("Gagal mengambil master data tarif laundry:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchServicesData();
+  }, []);
+
+  // 3. LOGIKA BARU: Kalkulasi total tagihan secara dinamis mengikuti database
   useEffect(() => {
     if (kategori === 'Kiloan' && berat) {
-      let hargaBase = 0;
+      // Cari kecocokan data layanan berdasarkan idServices yang dipilih di Picker
+      const layananTerpilih = servicesList.find((s) => Number(s.id) === Number(idServices));
       
-      if (idServices === 1) hargaBase = 7000;       
-      else if (idServices === 2) hargaBase = 5000;  
-      else if (idServices === 3) hargaBase = 5000;  
-      else if (idServices === 5) hargaBase = 14000; 
-      else if (idServices === 6) hargaBase = 10000;  
-      else if (idServices === 7) hargaBase = 10000;  
+      // Ambil harga dari database, jika data API belum termuat maka pakai fallback harga lama kamu
+      let hargaBase = layananTerpilih?.harga;
 
-      setTotalTagihan(parseFloat(berat) * hargaBase);
+      if (hargaBase === undefined || hargaBase === null) {
+        if (idServices === 1) hargaBase = 7000;       
+        else if (idServices === 2) hargaBase = 5000;  
+        else if (idServices === 3) hargaBase = 5000;  
+        else if (idServices === 5) hargaBase = 14000; 
+        else if (idServices === 6) hargaBase = 10000;  
+        else if (idServices === 7) hargaBase = 10000;  
+        else hargaBase = 0;
+      }
+
+      setTotalTagihan(parseFloat(berat) * Number(hargaBase));
     }
-  }, [berat, idServices, kategori]);
+  }, [berat, idServices, kategori, servicesList]); // Jalankan ulang jika berat, id, atau list data berubah
 
   const handleCustomerInputChange = async (text: string) => {
     setNama(text);
@@ -72,49 +107,39 @@ export default function TambahPesananV2() {
     
     setShowSuggestions(false);
     setSuggestions([]);
-    setIsNumberValid(true); // Bypass validasi karena merupakan data lama terpercaya dari database
+    setIsNumberValid(true); 
   };
 
-  // LOGIKA BARU: Fungsi Validasi Cek Nomor Aktif WhatsApp via Node.js Gateway
-const validateWhatsAppNumber = async () => {
-  if (!nomorHp || nomorHp.trim().length < 9) {
-    setIsNumberValid(false);
-    return;
-  }
-
-  try {
-    setCheckingNumber(true);
-    setIsNumberValid(null); // Reset status indikator setiap mulai cek baru
-
-    // LOGIKA OTOMATIS: Mengambil IP dari config.js dan mengganti portnya ke 8001
-    // API_URL = 'http://192.168.1.7:8000/api' -> diubah menjadi 'http://192.168.1.7:8001'
-    const waGatewayUrl = API_URL.replace(':8000/api', ':8001');
-
-    // Tembak URL yang sudah otomatis dinamis
-    const response = await axios.get(`${waGatewayUrl}/api/check-number?number=${nomorHp}`);
-    
-    setIsNumberValid(response.data.status);
-    
-    if (!response.data.status) {
-      Alert.alert(
-        "Peringatan Validasi", 
-        "Nomor HP yang diinput tidak terdaftar di WhatsApp. Mohon periksa kembali agar notifikasi nota digital tidak salah kirim!"
-      );
+  const validateWhatsAppNumber = async () => {
+    if (!nomorHp || nomorHp.trim().length < 9) {
+      setIsNumberValid(false);
+      return;
     }
-  } catch (error) {
-    console.error("Gagal validasi nomor WA:", error);
-    
-    // Paksa status menjadi null agar border hijau & teks sukses langsung hilang saat network error
-    setIsNumberValid(null); 
-    
-    Alert.alert(
-      "Koneksi Gateway Gagal", 
-      "Gagal terhubung ke server WhatsApp Gateway. Pastikan server Node.js Baileys sudah aktif di laptop Anda."
-    );
-  } finally {
-    setCheckingNumber(false);
-  }
-};
+
+    try {
+      setCheckingNumber(true);
+      setIsNumberValid(null); 
+
+      const response = await axios.get(`${API_URL}/check-number?number=${nomorHp}`);
+      setIsNumberValid(response.data.status);
+      
+      if (!response.data.status) {
+        Alert.alert(
+          "Peringatan Validasi", 
+          "Nomor HP yang diinput tidak terdaftar di WhatsApp. Mohon periksa kembali agar notifikasi nota digital tidak salah kirim!"
+        );
+      }
+    } catch (error) {
+      console.error("Gagal validasi nomor WA:", error);
+      setIsNumberValid(null); 
+      Alert.alert(
+        "Koneksi Gateway Gagal", 
+        "Gagal terhubung ke server WhatsApp Gateway. Pastikan server Node.js Baileys sudah aktif di VPS Anda."
+      );
+    } finally {
+      setCheckingNumber(false);
+    }
+  };
 
   const handleSimpan = async () => {
     if (!nama || !nomorHp || !alamat || (kategori === 'Kiloan' && !berat)) {
@@ -173,7 +198,6 @@ const validateWhatsAppNumber = async () => {
         )}
       </View>
 
-      {/* MODIFIKASI INPUT NOMOR HP DENGAN KONTEKS VALIDASI WARNA BORDER */}
       <View>
         <TextInput 
           style={[
@@ -186,12 +210,11 @@ const validateWhatsAppNumber = async () => {
           value={nomorHp} 
           onChangeText={(text) => {
             setNomorHp(text);
-            setIsNumberValid(null); // Reset status indikator saat mengetik ulang data baru
+            setIsNumberValid(null); 
           }} 
-          onBlur={validateWhatsAppNumber} // Trigger logika cek WhatsApp saat kursor keluar dari kolom nomor
+          onBlur={validateWhatsAppNumber} 
         />
         
-        {/* INDIKATOR STATUS VISUAL DI BAWAH KOLOM NOMOR HP */}
         {checkingNumber && (
           <View style={styles.statusIndicatorRow}>
             <ActivityIndicator size="small" color="#673AB7" style={{ marginRight: 6 }} />
@@ -306,8 +329,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 1,
   },
-
-  // STYLING BARU INDIKATOR TEKS VALIDASI BAWAH KOLOM HP
   statusIndicatorRow: {
     flexDirection: 'row',
     alignItems: 'center',

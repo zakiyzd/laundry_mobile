@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'; // 🔥 Tambahkan useEffect
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator, BackHandler } from 'react-native'; // 🔥 Tambahkan BackHandler
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator, BackHandler } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../config'; 
@@ -7,17 +7,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons'; 
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [loginInput, setLoginInput] = useState(''); // 🌟 Mengganti 'email' menjadi 'loginInput'
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
   const router = useRouter();
 
-  // 🔥 --- LOGIKA TOMBOL BACK FISIK ANDROID ---
+  // --- LOGIKA TOMBOL BACK FISIK ANDROID ---
   useEffect(() => {
     const onBackPress = () => {
-      router.replace('/'); // Paksa kembali ke halaman opsi rute utama
+      router.replace('/'); 
       return true;
     };
 
@@ -26,22 +26,25 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Peringatan', 'Isi email dan password dulu ya!');
+    if (!loginInput || !password) {
+      Alert.alert('Peringatan', 'Isi email/nama dan password dulu ya!');
       return;
     }
 
     setLoading(true);
     try {
+      // 🌟 Mengirim data dengan key 'login' agar cocok dengan modifikasi backend Laravel
       const response = await axios.post(`${API_URL}/login`, {
-        email: email,
+        login: loginInput,
         password: password,
       });
 
-      const { user } = response.data;
+      const { user, access_token } = response.data;
 
-      // SIMPAN STATUS ROLE USER KE MEMORI HP
+      // SIMPAN STATUS DATA USER KE MEMORI HP
+      await AsyncStorage.setItem('userToken', access_token || response.data.token);
       await AsyncStorage.setItem('userRole', user.role);
+      await AsyncStorage.setItem('userName', user.name);
 
       // Logika Navigasi berdasarkan Role
       if (user.role === 'admin') {
@@ -68,7 +71,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       
-      {/* 🔥 TOMBOL BACK VISUAL DI LAYAR */}
+      {/* TOMBOL BACK VISUAL DI LAYAR */}
       <TouchableOpacity 
         style={styles.backButton} 
         onPress={() => router.replace('/')}
@@ -79,15 +82,17 @@ export default function LoginScreen() {
 
       <Text style={styles.title}>Login Panel</Text>
       
+      {/* 🌟 INPUT 1: Berubah menjadi Email atau Nama Lengkap */}
       <TextInput 
         style={styles.input} 
-        placeholder="Email" 
-        value={email}
-        onChangeText={setEmail}
+        placeholder="Email atau Username" 
+        value={loginInput}
+        onChangeText={setLoginInput}
         autoCapitalize="none"
-        keyboardType="email-address"
+        autoCorrect={false}
       />
       
+      {/* INPUT 2: PASSWORD */}
       <View style={styles.passwordContainer}>
         <TextInput 
           style={styles.inputPassword} 
@@ -95,6 +100,7 @@ export default function LoginScreen() {
           secureTextEntry={!showPassword} 
           value={password}
           onChangeText={setPassword}
+          autoCapitalize="none"
         />
         <TouchableOpacity 
           style={styles.eyeIcon} 
@@ -108,6 +114,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
       </View>
       
+      {/* TOMBOL LOGIN */}
       <TouchableOpacity 
         style={[styles.button, loading && { opacity: 0.7 }]} 
         onPress={handleLogin} 
@@ -126,7 +133,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 30, backgroundColor: '#fff' },
   
-  // 🔥 STYLE SINKRON UNTUK TOMBOL BACK
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -143,7 +149,7 @@ const styles = StyleSheet.create({
   },
 
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center', color: '#673AB7' },
-  input: { borderWidth: 1, borderColor: '#ddd', padding: 15, borderRadius: 10, marginBottom: 15 },
+  input: { borderWidth: 1, borderColor: '#ddd', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 15, color: '#333' },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,6 +161,8 @@ const styles = StyleSheet.create({
   inputPassword: {
     flex: 1,
     padding: 15,
+    fontSize: 15,
+    color: '#333'
   },
   eyeIcon: {
     paddingHorizontal: 15,

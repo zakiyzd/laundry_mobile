@@ -2,7 +2,7 @@
   "expo": {
     "name": "MM Laundry",
     "slug": "laundry_mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon-laundry.png",
     "scheme": "laundrymobile",
@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.zakiyzd.laundry_mobile",
+      "versionCode": 2,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -22,7 +23,7 @@
         "foregroundImage": "./assets/images/android-icon-foreground-laundry2.png"
       },
       "splash": {
-        "image": "./assets/images/splash-laundry1.png",
+        "image": "./assets/images/splash-laundryfix.png",
         "resizeMode": "contain",
         "backgroundColor": "#D2E9FF"
       }
@@ -36,7 +37,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-laundry1.png",
+          "image": "./assets/images/splash-laundryfix.png",
           "resizeMode": "contain",
           "backgroundColor": "#D2E9FF"
         }
