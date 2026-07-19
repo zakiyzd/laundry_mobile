@@ -3,53 +3,55 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = function withAndroidInsecureRepo(config) {
-  // 1. Modifikasi File build.gradle Internal Library Printer (HTTP, compile, SDK 34)
-  try {
-    const printerGradlePath = path.join(
-      config._internal?.projectRoot || process.cwd(),
-      'node_modules/react-native-bluetooth-escpos-printer/android/build.gradle'
-    );
+  const projectRoot = config._internal?.projectRoot || process.cwd();
 
+  // 1. Modifikasi File build.gradle Internal Library Printer
+  try {
+    const printerGradlePath = path.join(projectRoot, 'node_modules/react-native-bluetooth-escpos-printer/android/build.gradle');
     if (fs.existsSync(printerGradlePath)) {
       let content = fs.readFileSync(printerGradlePath, 'utf8');
-      
-      // Bersihkan HTTP
-      if (content.includes('http://')) {
-        content = content.replace(/http:\/\//g, 'https://');
-      }
-
-      // Perbaiki compile -> implementation
+      if (content.includes('http://')) content = content.replace(/http:\/\//g, 'https://');
       if (content.includes('compile(') || content.includes('compile ')) {
         content = content.replace(/compile\s*\(/g, 'implementation(');
         content = content.replace(/compile\s+/g, 'implementation ');
       }
-
-      // Dongkrak SDK ke 34
       content = content.replace(/compileSdkVersion\s+\d+/g, 'compileSdkVersion 34');
       content = content.replace(/targetSdkVersion\s+\d+/g, 'targetSdkVersion 34');
       content = content.replace(/buildToolsVersion\s+['"].*?['"]/g, 'buildToolsVersion "34.0.0"');
-
       fs.writeFileSync(printerGradlePath, content, 'utf8');
-      console.log('[InsecureRepoPlugin] Berhasil meremajakan syntax internal library printer!');
     }
-  } catch (error) {
-    console.log('[InsecureRepoPlugin] Gagal memodifikasi node_modules:', error);
-  }
+  } catch (e) { console.log(e); }
 
-  // 2. SOLUSI DUPLICATE CLASS YANG BENAR: Buang support library lawas dari allprojects
+  // 2. 🌟 SOLUSI BARU: Migrasikan file Java internal printer secara paksa ke AndroidX
+  try {
+    const javaFilePath = path.join(
+      projectRoot, 
+      'node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/RNBluetoothManagerModule.java'
+    );
+
+    if (fs.existsSync(javaFilePath)) {
+      let javaContent = fs.readFileSync(javaFilePath, 'utf8');
+      
+      // Ubah import support lawas ke androidx
+      javaContent = javaContent.replace('import android.support.v4.app.ActivityCompat;', 'import androidx.core.app.ActivityCompat;');
+      javaContent = javaContent.replace('import android.support.v4.content.ContextCompat;', 'import androidx.core.content.ContextCompat;');
+      
+      fs.writeFileSync(javaFilePath, javaContent, 'utf8');
+      console.log('[InsecureRepoPlugin] Sukses mengubah kode Java internal printer ke AndroidX!');
+    }
+  } catch (e) { console.log(e); }
+
+  // 3. Jaring Pengaman Global (Tetap biarkan untuk mencegah duplikasi class di level sub-project)
   return withProjectBuildGradle(config, (modConfig) => {
     if (modConfig.modResults.contents) {
       const exclusionRule = `
         allprojects {
             configurations.all {
-                // Menghapus dependencies support lawas agar tidak bentrok dengan AndroidX modern
                 exclude group: 'com.android.support', module: 'support-compat'
                 exclude group: 'com.android.support', module: 'support-media-compat'
             }
         }
       `;
-      
-      // Pastikan membersihkan injeksi yang eror kemarin dan pasang rule baru
       if (!modConfig.modResults.contents.includes('exclude group: \'com.android.support\'')) {
         modConfig.modResults.contents += `\n${exclusionRule}\n`;
       }
