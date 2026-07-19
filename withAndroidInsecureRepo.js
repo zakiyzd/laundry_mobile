@@ -4,20 +4,20 @@ module.exports = function withAndroidInsecureRepo(config) {
   return withSettingsGradle(config, (modConfig) => {
     if (modConfig.modResults.contents) {
       const insecureManagementRule = `
-        // Memaksa dependency resolution di tingkat inisialisasi awal untuk mengizinkan http
-        dependencyResolutionManagement {
-            repositories {
-                all { repo ->
-                    if (repo.hasProperty('url') && repo.url.toString().startsWith("http://")) {
-                        repo.allowInsecureProtocol = true
-                    }
-                }
+// Memaksa dependency resolution untuk mengizinkan http di akhir inisialisasi settings
+dependencyResolutionManagement {
+    repositories {
+        all { repo ->
+            if (repo.hasProperty('url') && repo.url.toString().startsWith("http://")) {
+                repo.allowInsecureProtocol = true
             }
         }
+    }
+}
       `;
       
-      // Sisipkan di bagian paling atas file settings.gradle
-      modConfig.modResults.contents = insecureManagementRule + "\n" + modConfig.modResults.contents;
+      // 🌟 SEKARANG DITARUH DI PALING BAWAH AGAR TIDAK MERUSAK PLUGIN MANAGEMENT
+      modConfig.modResults.contents += `\n${insecureManagementRule}\n`;
     }
     return modConfig;
   });
