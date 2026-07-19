@@ -4,6 +4,7 @@ import axios from "axios";
 import * as Print from "expo-print";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { NativeModules } from 'react-native';
 import {
   ActivityIndicator,
   Alert,
@@ -90,81 +91,79 @@ export default function AdminDashboard() {
     }, []),
   );
 
-  const handlePrintLabel = async (item: Order) => {
-    const htmlContent = `
-      <html>
-        <body style="display: flex; justify-content: center; align-items: center; font-family: 'Arial';">
-          <div style="width: 250px; border: 2px dashed #000; padding: 10px; border-radius: 10px;">
-            <h2 style="text-align: center; margin: 0; font-size: 18px;">LABEL CUCIAN</h2>
-            <hr/>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Nama:</strong> ${item.customer?.username || "Tanpa Nama"}</p>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Alamat:</strong> ${item.customer?.alamat || "-"}</p>
-            <p style="margin: 5px 0; font-size: 14px;"><strong>Layanan:</strong> ${item.service?.nama_layanan || "Layanan"}</p>
-            
-            <p style="margin: 5px 0; font-size: 14px;">
-              <strong>Detail:</strong> ${item.berat > 0 ? item.berat + " Kg" : `Satuan (${item.jenis_satuan || "-"})`}
-            </p>
-            
-            <hr/>
-            <p style="text-align: right; margin: 0; font-size: 16px; font-weight: bold;">Rp ${item.total_harga.toLocaleString("id-ID")}</p>
-            <p style="text-align: center; font-size: 10px; margin-top: 10px;">Terima kasih!</p>
-          </div>
-        </body>
-      </html>
-    `;
-    try {
-      await Print.printAsync({ html: htmlContent });
-    } catch (error) {
-      Alert.alert("Error", "Gagal mencetak");
-    }
-  };
+  // 🌟 Trik bypass agar Expo Go tidak crash
+const BluetoothPrinterModule = NativeModules.BluetoothEscPosPrinter 
+  ? require('react-native-bluetooth-escpos-printer') 
+  : {
+      BluetoothEscPosPrinter: {
+        printText: async (text: string) => { 
+          // Di Expo Go, teks struk/label akan dimuntahkan ke terminal laptopmu
+          console.log("=== [MOCK PRINT OUTPUT] ===\n" + text); 
+          return true;
+        }
+      }
+    };
 
-  const handlePrintStruk = async (item: Order) => {
-    const htmlContent = `
-      <html>
-        <body style="font-family: 'Courier New', Courier, monospace; width: 280px; margin: 0 auto; padding: 10px; color: #000;">
-          <div style="text-align: center;">
-            <h2 style="margin: 0; font-size: 16px; font-weight: bold;">MM LAUNDRY</h2>
-            <p style="margin: 2px 0; font-size: 11px;">Solusi Bersih & Cepat</p>
-            <p style="margin: 2px 0; font-size: 11px;">Jln. Raya Bantarkawung (Pertigaan Ciomas-Pakiringan)</p>
-            <p style="margin: 5px 0;">===============================</p>
-          </div>
-          <div style="font-size: 11px; line-height: 1.4;">
-            <p style="margin: 2px 0;"><strong>No. Nota :</strong> #${String(item.id).padStart(4, "0")}</p>
-            <p style="margin: 2px 0;"><strong>Tanggal  :</strong> ${formatTanggal(item.created_at)}</p>
-            <p style="margin: 2px 0;"><strong>Pelanggan:</strong> ${item.customer?.username || "Tanpa Nama"}</p>
-            <p style="margin: 2px 0;"><strong>No. HP    :</strong> ${item.customer?.nomor_hp || "-"}</p>
-            <p style="margin: 5px 0;">-------------------------------</p>
-            <p style="margin: 2px 0; font-weight: bold;">Layanan:</p>
-            <p style="margin: 2px 0; padding-left: 5px;">
-              ${item.berat > 0 ? "Kiloan" : "Satuan"} - ${item.service?.nama_layanan || "Layanan"}
-            </p>
-            <p style="margin: 2px 0; padding-left: 5px;">
-              ${item.berat > 0 ? `Berat: ${item.berat} Kg` : `Item: ${item.jenis_satuan || "-"}`}
-            </p>
-            <p style="margin: 5px 0;">-------------------------------</p>
-            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-top: 5px;">
-              <span>TOTAL BAYAR:</span>
-              <span>Rp ${item.total_harga.toLocaleString("id-ID")}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px; margin-top: 2px;">
-              <span>STATUS     :</span>
-              <span>${item.status.toUpperCase()} (LUNAS)</span>
-            </div>
-          </div>
-          <div style="text-align: center; margin-top: 15px; font-size: 11px;">
-            <p style="margin: 2px 0;">=== TERIMA KASIH ===</p>
-            <p style="margin: 2px 0;">Cucian Bersih, Hati Tenang</p>
-          </div>
-        </body>
-      </html>
-    `;
-    try {
-      await Print.printAsync({ html: htmlContent });
-    } catch (error) {
-      Alert.alert("Error", "Gagal mencetak struk belanja");
-    }
-  };
+// Ekstrak objek agar fungsi handlePrintStruk/LabelBluetooth di bawahnya tidak error
+const { BluetoothEscPosPrinter } = BluetoothPrinterModule;
+
+  // 📄 FUNGSI 1: STRUK NOTA (Panjang mengikuti jumlah item/cucian)
+const handlePrintStrukBluetooth = async (item: Order) => {
+  let strukText = "";
+  strukText += "   MM LAUNDRY   \n";
+  strukText += "Solusi Bersih & Cepat\n";
+  strukText += "Pertigaan Ciomas-Pakiringan\n";
+  strukText += "================================\n"; // 32 Karakter
+  strukText += `No. Nota : #${String(item.id).padStart(4, "0")}\n`;
+  strukText += `Tanggal  : ${formatTanggal(item.created_at)}\n`;
+  strukText += `Pelanggan: ${item.customer?.username || "Tanpa Nama"}\n`;
+  strukText += `No. HP   : ${item.customer?.nomor_hp || "-"}\n`;
+  strukText += "--------------------------------\n";
+  strukText += "Layanan:\n";
+  
+  const jenisLayanan = item.berat > 0 ? "Kiloan" : "Satuan";
+  strukText += `- ${jenisLayanan} - ${item.service?.nama_layanan || "Layanan"}\n`;
+  
+  const detailItem = item.berat > 0 ? `Berat: ${item.berat} Kg` : `Item: ${item.jenis_satuan || "-"}`;
+  strukText += `  ${detailItem}\n`;
+  strukText += "--------------------------------\n";
+  
+  // Hitung spasi otomatis untuk harga mepet kanan
+  const totalLabel = "TOTAL BAYAR:";
+  const totalHarga = `Rp ${item.total_harga.toLocaleString("id-ID")}`;
+  const sSpasi = 32 - (totalLabel.length + totalHarga.length);
+  strukText += totalLabel + " ".repeat(sSpasi > 0 ? sSpasi : 1) + totalHarga + "\n";
+  
+  strukText += "\n====== TERIMA KASIH ======\n";
+  strukText += "\n\n\n"; // 3x enter agar teks melewati pisau pemotong fisik printer
+
+  try {
+    await BluetoothEscPosPrinter.printText(strukText, {});
+  } catch (error) {
+    Alert.alert("Error", "Gagal mengirim data ke printer bluetooth kasir.");
+  }
+};
+
+// 🏷️ FUNGSI 2: LABEL TEMPEL ISOLASI (Didesain super pendek agar irit kertas)
+const handlePrintLabelBluetooth = async (item: Order) => {
+  let labelText = "";
+  labelText += "        LABEL CUCIAN        \n";
+  labelText += "================================\n";
+  labelText += `Nota   : #${String(item.id).padStart(4, "0")}\n`;
+  labelText += `Nama   : ${item.customer?.username || "Tanpa Nama"}\n`;
+  labelText += `Layan  : ${item.service?.nama_layanan || "Layanan"}\n`;
+  
+  const detailCucian = item.berat > 0 ? `${item.berat} Kg` : `Satuan (${item.jenis_satuan || "-"})`;
+  labelText += `Detail : ${detailCucian}\n`;
+  labelText += "================================\n";
+  labelText += "\n\n\n"; // Cukup kasih enter 3x agar keluar pas di pisau sobek
+
+  try {
+    await BluetoothEscPosPrinter.printText(labelText, {});
+  } catch (error) {
+    Alert.alert("Error", "Gagal mencetak label cucian.");
+  }
+};
 
   const formatTanggal = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = {
@@ -288,6 +287,14 @@ export default function AdminDashboard() {
     const unsubscribe = navigation.addListener("focus", fetchData);
     return unsubscribe;
   }, [navigation]);
+
+  function handlePrintStruk(item: Order): void {
+    throw new Error("Function not implemented.");
+  }
+
+  function handlePrintLabel(item: Order): void {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <View style={styles.container}>
@@ -539,7 +546,7 @@ export default function AdminDashboard() {
                 {/* 2. CETAK STRUK */}
                 <TouchableOpacity
                   style={styles.actionButton}
-                  onPress={() => handlePrintStruk(item)}
+                  onPress={() => handlePrintStrukBluetooth(item)}
                 >
                   <View
                     style={[styles.iconCircle, { backgroundColor: "#E8F5E9" }]}
@@ -552,7 +559,7 @@ export default function AdminDashboard() {
                 {/* 3. CETAK LABEL */}
                 <TouchableOpacity
                   style={styles.actionButton}
-                  onPress={() => handlePrintLabel(item)}
+                  onPress={() => handlePrintLabelBluetooth(item)}
                 >
                   <View
                     style={[styles.iconCircle, { backgroundColor: "#F5F5F5" }]}
