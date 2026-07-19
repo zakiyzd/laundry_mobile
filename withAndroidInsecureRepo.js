@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = function withAndroidInsecureRepo(config) {
-  // 1. Taktik Agresif: Cari file build.gradle milik library printer langsung di node_modules dan ganti isinya
   try {
     const printerGradlePath = path.join(
       config._internal?.projectRoot || process.cwd(),
@@ -13,18 +12,18 @@ module.exports = function withAndroidInsecureRepo(config) {
     if (fs.existsSync(printerGradlePath)) {
       let content = fs.readFileSync(printerGradlePath, 'utf8');
       
-      // Ubah http ke https atau paksa tambahkan allowInsecureProtocol langsung di file internal library-nya
-      if (content.includes('http://jcenter.bintray.com')) {
-        content = content.replace(/http:\/\/jcenter\.bintray\.com/g, 'https://jcenter.bintray.com');
+      // 🌟 STRATEGI BARU: Cari SEMUA 'http://' di dalam file build.gradle library tersebut dan ubah paksa menjadi 'https://'
+      if (content.includes('http://')) {
+        content = content.replace(/http:\/\//g, 'https://');
         fs.writeFileSync(printerGradlePath, content, 'utf8');
-        console.log('[InsecureRepoPlugin] Berhasil mengubah internal http jcenter ke https!');
+        console.log('[InsecureRepoPlugin] Sukses mengubah SEMUA link HTTP internal menjadi HTTPS!');
       }
     }
   } catch (error) {
-    console.log('[InsecureRepoPlugin] Gagal memodifikasi node_modules secara langsung:', error);
+    console.log('[InsecureRepoPlugin] Gagal menyisir node_modules:', error);
   }
 
-  // 2. Taktik Pengaman: Tetap pasang fallback global rules di root build.gradle
+  // Tetap pasang jaring pengaman global di root proyek
   return withProjectBuildGradle(config, (modConfig) => {
     if (modConfig.modResults.contents) {
       const fallbackRule = `
