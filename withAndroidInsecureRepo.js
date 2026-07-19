@@ -1,35 +1,46 @@
 const { withProjectBuildGradle } = require('@expo/config-plugins');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = function withAndroidInsecureRepo(config) {
+  // 1. Taktik Agresif: Cari file build.gradle milik library printer langsung di node_modules dan ganti isinya
+  try {
+    const printerGradlePath = path.join(
+      config._internal?.projectRoot || process.cwd(),
+      'node_modules/react-native-bluetooth-escpos-printer/android/build.gradle'
+    );
+
+    if (fs.existsSync(printerGradlePath)) {
+      let content = fs.readFileSync(printerGradlePath, 'utf8');
+      
+      // Ubah http ke https atau paksa tambahkan allowInsecureProtocol langsung di file internal library-nya
+      if (content.includes('http://jcenter.bintray.com')) {
+        content = content.replace(/http:\/\/jcenter\.bintray\.com/g, 'https://jcenter.bintray.com');
+        fs.writeFileSync(printerGradlePath, content, 'utf8');
+        console.log('[InsecureRepoPlugin] Berhasil mengubah internal http jcenter ke https!');
+      }
+    }
+  } catch (error) {
+    console.log('[InsecureRepoPlugin] Gagal memodifikasi node_modules secara langsung:', error);
+  }
+
+  // 2. Taktik Pengaman: Tetap pasang fallback global rules di root build.gradle
   return withProjectBuildGradle(config, (modConfig) => {
     if (modConfig.modResults.contents) {
-      // 1. Ganti semua instansiasi jcenter http ke https secara paksa di build.gradle utama
-      modConfig.modResults.contents = modConfig.modResults.contents.replace(
-        /http:\/\/jcenter\.bintray\.com/g,
-        'https://jcenter.bintray.com'
-      );
-
-      // 2. Tambahkan fallback global rules di allprojects jika regex di atas terlewat
       const fallbackRule = `
         allprojects {
-            buildscript {
-                repositories {
-                    maven { url "https://jcenter.bintray.com" }
-                }
-            }
             repositories {
-                maven { url "https://jcenter.bintray.com" }
-                // Jika masih ada yang maksa pakai http, izinkan lewat saklar ini
-                List<ArtifactRepository> insecureRepos = repositories.findAll { repo ->
-                    repo.hasProperty('url') && repo.url.toString().startsWith("http://")
-                }
-                insecureRepos.each { repo ->
-                    repo.allowInsecureProtocol = true
+                all { repo ->
+                    if (repo.hasProperty('url') && repo.url.toString().startsWith("http://")) {
+                        repo.allowInsecureProtocol = true
+                    }
                 }
             }
         }
       `;
-      modConfig.modResults.contents += `\n${fallbackRule}\n`;
+      if (!modConfig.modResults.contents.includes('allowInsecureProtocol')) {
+        modConfig.modResults.contents += `\n${fallbackRule}\n`;
+      }
     }
     return modConfig;
   });
