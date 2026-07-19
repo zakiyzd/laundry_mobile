@@ -140,7 +140,7 @@ const { BluetoothManager, BluetoothEscPosPrinter } = BluetoothPrinterModule;
     },
     // 🌟 MENU BARU: Menangani printer thermal langsung di tempat
     {
-      title: "Pengaturan Printer Thermal",
+      title: "Pengaturan Printer",
       description: `Status: ${connectedName}`,
       icon: "print-outline",
       iconColor: "#673AB7",
