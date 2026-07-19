@@ -1,10 +1,11 @@
-const { withProjectBuildGradle } = require('@expo/config-plugins');
+const { withSettingsGradle } = require('@expo/config-plugins');
 
 module.exports = function withAndroidInsecureRepo(config) {
-  return withProjectBuildGradle(config, (modConfig) => {
+  return withSettingsGradle(config, (modConfig) => {
     if (modConfig.modResults.contents) {
-      const insecureRepoRule = `
-        allprojects {
+      const insecureManagementRule = `
+        // Memaksa dependency resolution di tingkat inisialisasi awal untuk mengizinkan http
+        dependencyResolutionManagement {
             repositories {
                 all { repo ->
                     if (repo.hasProperty('url') && repo.url.toString().startsWith("http://")) {
@@ -15,7 +16,8 @@ module.exports = function withAndroidInsecureRepo(config) {
         }
       `;
       
-      modConfig.modResults.contents += `\n${insecureRepoRule}\n`;
+      // Sisipkan di bagian paling atas file settings.gradle
+      modConfig.modResults.contents = insecureManagementRule + "\n" + modConfig.modResults.contents;
     }
     return modConfig;
   });
