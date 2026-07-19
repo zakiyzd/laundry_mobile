@@ -38,17 +38,16 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": [
+   "plugins": [
       "expo-router",
+      "./withAndroidInsecureRepo", 
       [
         "expo-build-properties",
         {
           "android": {
             "extraMavenRepos": [
-              "https://jcenter.bintray.com",
-              "http://jcenter.bintray.com"
-            ],
-            "allowInsecureOpensslTlsVersion": true
+              "https://jcenter.bintray.com"
+            ]
           }
         }
       ],
