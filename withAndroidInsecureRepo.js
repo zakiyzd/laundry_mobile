@@ -12,12 +12,20 @@ module.exports = function withAndroidInsecureRepo(config) {
     if (fs.existsSync(printerGradlePath)) {
       let content = fs.readFileSync(printerGradlePath, 'utf8');
       
-      // 🌟 STRATEGI BARU: Cari SEMUA 'http://' di dalam file build.gradle library tersebut dan ubah paksa menjadi 'https://'
+      // 1. Ubah SEMUA link HTTP internal menjadi HTTPS (Solusi eror sebelumnya)
       if (content.includes('http://')) {
         content = content.replace(/http:\/\//g, 'https://');
-        fs.writeFileSync(printerGradlePath, content, 'utf8');
-        console.log('[InsecureRepoPlugin] Sukses mengubah SEMUA link HTTP internal menjadi HTTPS!');
       }
+
+      // 2. 🌟 SOLUSI BARU: Ubah perintah jadul 'compile' menjadi 'implementation' agar kompatibel dengan Gradle modern
+      if (content.includes('compile(') || content.includes('compile ')) {
+        // Mengganti compile fileTree, compile project, atau compile biasa
+        content = content.replace(/compile\s*\(/g, 'implementation(');
+        content = content.replace(/compile\s+/g, 'implementation ');
+        console.log('[InsecureRepoPlugin] Sukses memperbarui method compile() menjadi implementation()!');
+      }
+      
+      fs.writeFileSync(printerGradlePath, content, 'utf8');
     }
   } catch (error) {
     console.log('[InsecureRepoPlugin] Gagal menyisir node_modules:', error);
