@@ -45,8 +45,10 @@
         {
           "android": {
             "extraMavenRepos": [
-              "https://jcenter.bintray.com"
-            ]
+              "https://jcenter.bintray.com",
+              "http://jcenter.bintray.com"
+            ],
+            "allowInsecureOpensslTlsVersion": true
           }
         }
       ],
